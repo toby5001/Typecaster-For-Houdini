@@ -3,9 +3,9 @@ backup
 dev/backup
 otls/backup
 
+# Ignore old and dev stuff
 dev
-
-# Ignore old versions
+otls/old
 pythonlibs/typecaster/old
 
 ignore
