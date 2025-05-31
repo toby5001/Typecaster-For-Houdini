@@ -393,16 +393,19 @@ def __get_searchpaths__( config:dict=None)-> tuple[list,list,list]:
                         if isinstance( searchinfo, str):
                             path = searchinfo
 
-                        elif isinstance( searchinfo, list):
-                            path = searchinfo[0]
-                            if len(searchinfo) > 1:
-                                sourcetag = searchinfo[1]
-
                         elif isinstance( searchinfo, dict):
                             path = searchinfo.get('path',None)
                             sourcetag = searchinfo.get('source_tag', None)
                             max_depth_override = searchinfo.get('max_depth_override', max_depth_override)
                             priority = searchinfo.get('priority',priority)
+
+                        elif isinstance( searchinfo, list):
+                            path = searchinfo[0]
+                            length = len(searchinfo)
+                            if length > 1:
+                                sourcetag = searchinfo[1]
+                                if length > 2:
+                                    priority = searchinfo[2]
 
                         if path:
                             relpath = path
