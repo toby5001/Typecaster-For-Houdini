@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="Typecaster" label="Typecaster">
+    <memberTool name="installTypecaster"/>
+    <memberTool name="convertFontNode"/>
+  </toolshelf>
+
+  <tool name="convertFontNode" label="Convert Font Node" icon="PLASMA_App">
+    <script scriptType="python"><![CDATA[import hou
+
+for node in hou.selectedNodes():
+    node : hou.OpNode
+    if node.type().name() == "font":
+        parent_node = node.parent()
+        nodename = f"tc_{node.name()}"
+        parms = {}
+        parms['pack_method'] = 1
+        triggercallback = ('font',)
+
+        parms['font'] = node.evalParm('file')
+        parms['text'] = node.evalParm('text')
+
+        parms['align_line_menu'] = node.evalParm('halign')
+        parms['block_align_y_menu'] = node.evalParm('valign')-1
+        
+        parms['t'] = node.evalParmTuple('t')
+        parms['r'] = node.evalParmTuple('r')
+        parms['s'] = node.evalParmTuple('s') + (1.0,)
+
+        parms['font_size'] = node.evalParm('fontsize')
+        parms['poly_lod'] = node.evalParm('lod')
+
+        tracking = node.evalParmTuple('tracking')
+        parms['tracking'] = tracking[0]*parms['font_size']
+        parms['leading'] = tracking[1]*parms['font_size']
+
+        hole = node.evalParm('hole')
+        if hole != 1:
+            parms['native_text_attributes'] = 3
+        parms['native_text_attributes'] = node.evalParm('addattrib')
+
+        tcnode : hou.OpNode = parent_node.createNode('ADL::typecaster_font', node_name=nodename)
+        tcnode.setParms(parms)
+        for tgt in triggercallback:
+            parm: hou.Parm = tcnode.parm(tgt)
+            parm.pressButton()
+        # print(parms.get('file'))]]></script>
+  </tool>
+</shelfDocument>

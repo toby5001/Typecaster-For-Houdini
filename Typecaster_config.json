@@ -1,0 +1,79 @@
+{
+    "searchpaths": {
+        "COMMENT": [
+            "INFO--------------------------------------",
+            "------------------------------------------",
+            "There are a few different ways to list search paths, depending on your preference:",
+            "1) A simple path to the folder",
+            "2) A list containing a path to the folder, a source tag (optional), and max depth override (optional, rarely needed)",
+            "3) A dictionary with a path, source_tag (optional), max_depth_override (optional, rarely needed), and priority (optional, rarely needed)",
+            "PARAMETERS--------------------------------",
+            "------------------------------------------",
+            "path (required):",
+            "       Path string to the folder you would like to search. This can",
+            "       contain environment variables ($VAR, ${VAR}), user shortcuts (~),",
+            "       relative paths (../), and network drives (//).",
+            "source_tag (optional):",
+            "       A string which will show up in certain parts of the font interface,",
+            "       indicating where the font is from.",
+            "max_depth_override (optional):",
+            "       While not often needed, this will limit the number of times a folder can",
+            "       be recursivley searched through, up to the global limit. Default to 2.",
+            "priority (optional):",
+            "       Determines the priority for the path to be searched. Defaults to",
+            "       0 when not set. When set above 0, the path will be searched before",
+            "       any standard searching from highest to lowest priority.",
+            "       When set below 0, the path will be searched after any standard searching,",
+            "       from highest to lowest priority.",
+            "EXAMPLES----------------------------------",
+            "------------------------------------------",
+            "/path/to/your/downloads/folder",
+            [
+                "/path/to/your/downloads/folder"
+            ],
+            [
+                "/path/to/your/downloads/folder",
+                "Downloads"
+            ],
+            [
+                "/path/to/your/downloads/folder",
+                "Downloads",
+                2
+            ],
+            {
+                "path": "C:/path/to/your/downloads/folder",
+                "source_tag": "Downloads"
+            },
+            {
+                "path": "C:/path/to/your/downloads/folder",
+                "source_tag": "Downloads",
+                "max_depth_override": 2,
+                "priority": 1
+            }
+        ],
+        "all": [
+            {
+                "path": "$HFS/houdini/fonts",
+                "source_tag": "$HFS",
+                "priority": 2
+            },
+            {
+                "path": "$TYPECASTER/fonts",
+                "source_tag": "$TYPECASTER",
+                "priority": 1
+            },
+            [
+                "$HIP/fonts",
+                "$HIP"
+            ],
+            [
+                "$JOB/fonts",
+                "$JOB"
+            ]
+        ],
+        "windows": [],
+        "linux": [],
+        "darwin": []
+    },
+    "only_use_config_searchpaths": 0
+}

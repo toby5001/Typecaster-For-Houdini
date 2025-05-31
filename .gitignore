@@ -1,0 +1,24 @@
+# Ignore all backups
+backup
+dev/backup
+otls/backup
+
+# Ignore old versions
+pythonlibs/typecaster/old
+
+ignore
+scripts/.idea
+scripts/.idea/*
+scripts/python/.idea/*
+
+# Ignore automatically installed python libfolders
+python3.9libs
+python3.10libs
+python3.11libs
+python3.12libs
+
+examples/geo
+examples/geo/*
+
+# Ignore compiled python
+*.pyc

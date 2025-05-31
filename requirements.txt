@@ -1,0 +1,12 @@
+Brotli==1.1.0
+FindSystemFontsFIlename==0.3.2
+fonttools[woff,ufo,unicode,pathops]==4.57.0
+
+# newer python-bidi is completely incompatible with how we use it
+python-bidi==0.4.2  # pyup: ignore
+
+ufo2ft>=3.2.8 #Pin for fg issue (according to coldtype)
+ufoLib2==0.17.1
+
+uharfbuzz<0.47.0  # some kind of cached variations/memory bug introduced in 0.47.0 (according to coldtype)
+unicodedata2==16.0.0

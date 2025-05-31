@@ -1,0 +1,16 @@
+{
+	"env": [
+		{
+			"TYPECASTER": "C:/Users/Andrew/Dropbox/Projects/Typecaster-For-Houdini"
+		},
+		{
+			"PYTHONPATH": [
+				"${TYPECASTER}/pythonlibs",
+				{
+					"method": "prepend"
+				}
+			]
+		}
+	],
+	"hpath": "$TYPECASTER"
+}
