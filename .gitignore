@@ -3,6 +3,8 @@ backup
 dev/backup
 otls/backup
 
+dev
+
 # Ignore old versions
 pythonlibs/typecaster/old
 
