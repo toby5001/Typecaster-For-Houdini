@@ -5,9 +5,8 @@ The general goal of this submodule it to provide tools for identifying available
 
 """
 
-from os.path import expandvars
 from find_system_fonts_filename import get_system_fonts_filename
-from pathlib import Path
+from pathlib import Path, WindowsPath, PosixPath
 from fontTools import ttLib
 from platform import system as get_platform_system
 from typecaster.config import get_config, add_config_dependencies
@@ -45,6 +44,37 @@ elif PLATFORM == "LINUX":
 # Fontfinder utilities
 
 # --------------------------------------------------------------------------------------------------------------------------------
+
+try:
+    from hou import text
+    def to_real_path(path:str)->Path:
+        """Take a path string and convert it to a pathlib path. This will evaluate the string in a way as close to Houdini as possible.
+
+        Args:
+            path (str): Pathstring to convert
+
+        Returns:
+            Path: Path object which has had it's variables expanded and been fully resolved
+        """
+        # from os.path import expandvars
+        # print( "Style-Houdini:", Path(text.expandString(path)).resolve() )
+        # print( "Style-Hybrid :", Path(text.expandString(str=path,expand_tilde=False)).expanduser().resolve() )
+        # print( "Style-Pathlib:", Path(expandvars(path)).expanduser().resolve() )
+        return Path(text.expandString(path)).resolve()
+
+except ImportError:
+    from os.path import expandvars
+    def to_real_path(path:str)->Path:
+        """Take a path string and convert it to a pathlib path. This is a fallback if being run outside of Houdini.
+
+        Args:
+            path (str): Pathstring to convert
+
+        Returns:
+            Path: Path object which has had it's variables expanded and been fully resolved
+        """
+        return Path(expandvars(path)).expanduser().resolve()
+
 
 def __clear_font_caches__():
     _families_.clear()
@@ -119,6 +149,8 @@ class NameInfo:
     def __len__(self):
         return len(self.__field_names__)
     
+    def to_json(self):
+        return self.__repr__()
     # def __dict__(self):
     #     dict = { k: self.__dict__[k] for k in self.__field_names__}
     #     return dict
@@ -168,6 +200,31 @@ def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
     #         break
     return name, family, subfamily
 
+# Below is an experimental idea for dumping all of the font info to a json file.
+# It could be potentially useful to get the information from this when Houdini has many python
+# sessions running in something like PDG, where the initial time to locate all of the fonts
+# could be meaningful (assuming that the workers are having their python state reset)
+if False:
+    import json
+
+    # Monkeypatching method of complex object compatibility taken from
+    # this stackoverflow answer: https://stackoverflow.com/a/38764817
+    from json import JSONEncoder
+
+    def info_to_jsondump(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_cache.json", indent=4):
+        def _default(self, obj):
+            return getattr(obj.__class__, "to_json", _default.default)(obj)
+        _default.default = JSONEncoder().default
+        JSONEncoder.default = _default
+        
+        data = {'name_info': name_info(), 'families': families(), 'path_to_names':path_to_names() }
+        if to_file:
+            path = to_real_path(file_path)
+            path.parent.mkdir(exist_ok=True)
+            with path.open("w") as f:
+                json.dump(data, f, indent=indent)
+        else:
+            return json.dumps(data,indent=indent)
 
 # --------------------------------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
@@ -204,10 +261,10 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
     
     # Maybe these 2 should be sets since I don't want repeated items anyways?
     if path not in _path_to_names_:
-        _path_to_names_[path] = [fontName,]
+        _path_to_names_[path.as_posix()] = [fontName,]
     else:
         if fontName not in _path_to_names_[path]:
-            _path_to_names_[path].append(fontName)
+            _path_to_names_[path.as_posix()].append(fontName)
 
     if fontFamily not in _families_:
          _families_[fontFamily] = [fontName,]
@@ -291,7 +348,7 @@ def __add_adobe_fonts__():
 
 def __add_fonts_from_relative_path__(relative_path:str, tags={}, max_depth=None, real_path:Path=None):
     if not real_path:
-        real_path = Path( expandvars(relative_path) ).expanduser().resolve()
+        real_path = to_real_path(relative_path)
     if real_path.exists():
         def iterFunc(p:Path):
             if p.is_file():
@@ -343,7 +400,7 @@ def __get_searchpaths__( config:dict=None)-> tuple[list,list,list]:
 
                         if path:
                             relpath = path
-                            path = Path(expandvars(path)).expanduser().resolve()
+                            path = to_real_path(path)
                             if path.exists():
                                 relpath = Path(relpath).as_posix()
 
@@ -437,7 +494,7 @@ def name_info(name:str=None) -> (dict[NameInfo]|NameInfo):
         update_font_info()
     return __lookup_if_specified__(_name_info_, name)
 
-def path_to_names(path:Path=None) -> (dict[Path,list[str]]|list[str]):
+def path_to_names(path:Path|str=None) -> (dict[Path,list[str]]|list[str]):
     """
     Used for converting a path to a list of font names. If the path is to a single font, the list will only have one element.
     If the path is to a collection, the list will be all of the font names which the collection contains.
@@ -449,6 +506,8 @@ def path_to_names(path:Path=None) -> (dict[Path,list[str]]|list[str]):
     """
     if not _path_to_names_:
         update_font_info()
+    if path and isinstance( path, Path):
+        path = path.as_posix()
     return __lookup_if_specified__(_path_to_names_, path)
 
 
@@ -495,7 +554,7 @@ def path_to_names(path:Path=None) -> (dict[Path,list[str]]|list[str]):
 #             configs = fontconfig.split("|")
 #             if len(configs) > 1:
 #                 relpath = Path(configs[0]).as_posix()
-#                 searchpath = Path(expandvars(relpath)).resolve()
+#                 searchpath = to_real_path(relpath)
 
 #                 if searchpath.exists():
 #                     if True:

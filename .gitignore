@@ -3,6 +3,9 @@ backup
 dev/backup
 otls/backup
 
+# Temp folder for parts of typecaster.
+.temp
+
 # Ignore old and dev stuff
 dev
 otls/old
