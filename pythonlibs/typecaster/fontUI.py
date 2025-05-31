@@ -85,8 +85,7 @@ for i, sf in enumerate(__SUBFAMILY_ORDER__):
 del __SUBFAMILY_ORDER__
 
 
-# This isn't really needed right now, but if I ever end up separating out some of these functions to an external file,
-# it could be useful to support the changing of parameter names across multiple asset versions.
+# This isn't really needed right now, but it could be useful to support the changing of parameter names across multiple asset versions.
 PARMNAMING = {
     "1.0" : {
         'font':'font',
@@ -430,10 +429,13 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
 
 def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"):
     """
-    If possible, swap a font path to it's corresponding font name, or swap a font name to it's corresponding path
+    If possible, swap a font path to it's corresponding font name, or swap a font
+    name to it's corresponding path
 
     Args:
-        swap_mode (int): By default, this function inverts the current operation, but it can also either only convert to paths, or only to names. This is done with the following values:
+        swap_mode (int): By default, this function inverts the current operation,
+            but it can also either only convert to paths, or only to names. This 
+            is done with the following values:
             - 0: Swap in both directions
             - 1: Swap paths for names
             - 2: Swap names for paths
@@ -629,7 +631,8 @@ def _get_subfamily_priority_( subname:str)->int:
     subfamily name.
 
     Args:
-        subname (str): Subfamily name to search against. This is converted to lowercase and has all of it's spaces removed before comparison.
+        subname (str): Subfamily name to search against. This is converted to lowercase and
+            has all of it's spaces removed before comparison.
 
     Returns:
         int: Priority number for the subfamily.
