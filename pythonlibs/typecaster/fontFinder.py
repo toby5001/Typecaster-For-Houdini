@@ -5,7 +5,6 @@ The general goal of this submodule it to provide tools for identifying available
 
 """
 
-import re
 from os.path import expandvars
 from find_system_fonts_filename import get_system_fonts_filename
 from pathlib import Path
@@ -26,13 +25,12 @@ PLATFORM = get_platform_system().upper()
 _families_ = {}
 _name_info_ = {}
 _path_to_names_ = {}
-add_config_dependencies(_families_,_name_info_,_path_to_names_)
+add_config_dependencies(_families_, _name_info_, _path_to_names_)
 
 COLLECTIONSUFFIXES = {".ttc", ".otc"}
-FONTFILES = {".ttf":"",".ttc":"",".otf":"",".otc":"",".woff":"",".woff2":""}
+FONTFILES = {".ttf": "", ".ttc": "", ".otf": "", ".otc": "", ".woff": "", ".woff2": ""}
 FONT_FIND_MAX_DEPTH = 3
 
-# TODO: support more than just windows
 LIVETYPE_LOCATION = None
 if PLATFORM == "WINDOWS":
     LIVETYPE_LOCATION = Path.home() / "AppData/Roaming/Adobe/CoreSync/plugins/livetype"
@@ -52,6 +50,7 @@ def __clear_font_caches__():
     _families_.clear()
     _name_info_.clear()
     _path_to_names_.clear()
+
 
 class NameInfo:
     """
@@ -132,7 +131,6 @@ class NameInfo:
     #     return iter(d)
 
 
-
 # EmptyInfo = NameInfo(path=None,number=None,family=None)
 
 def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
@@ -169,7 +167,6 @@ def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
     #     if name and family:
     #         break
     return name, family, subfamily
-
 
 
 # --------------------------------------------------------------------------------------------------------------------------------
@@ -454,139 +451,6 @@ def path_to_names(path:Path=None) -> (dict[Path,list[str]]|list[str]):
         update_font_info()
     return __lookup_if_specified__(_path_to_names_, path)
 
-def get_real_font_path(font):
-    result = name_info(font)
-    if result:
-        return result.path
-    else:
-        return Path(expandvars(font))
-
-def get_real_font_data(font):
-    result = name_info(font)
-    if result:
-        return result
-    else:
-        return NameInfo( Path(expandvars(font)), 0, None)
-
-
-
-# --------------------------------------------------------------------------------------------------------------------------------
-# --------------------------------------------------------------------------------------------------------------------------------
-
-# Interface handling
-
-# --------------------------------------------------------------------------------------------------------------------------------
-
-def get_collection_menu(fontpath:Path) -> tuple[list[str],list[str]]:
-    """
-    Using a path to a font collection file, output a pair of menu items and
-    labels for specifying a font number within a collection.
-    
-    Args:
-        fontpath(Path): Pathlib Path to a font collection file.
-    """
-    fontpath = fontpath.resolve()
-    menu_items = []
-    menu_labels = []
-    names = path_to_names(fontpath)
-    if names:
-        infos = name_info()
-        for name in names:
-            info = infos[name]
-            menu_items.append( str(info.number) )
-            menu_labels.append(name)
-    else:
-        collection = ttLib.TTCollection(fontpath)
-        for number, ttfont in enumerate(collection.fonts):
-            name = get_best_names( ttfont)[0]
-            menu_items.append( str(number) )
-            menu_labels.append(name)
-    
-    paired_lists = sorted(zip(menu_items, menu_labels))
-    menu_items, menu_labels = zip(*paired_lists)
-    return menu_items, menu_labels
-
-__SUBFAMILY_ORDER__ = [
-    "hairline",
-    "extralight",
-    "ultralight",
-    "ultrathin",
-    "thin",
-    "light",
-    "regular",
-    "roman",
-    "normal",
-    "book",
-    "medium",
-    "semibold",
-    "demibold",
-    "bold",
-    "extrabold",
-    "ultrabold",
-    "heavy",
-    "black",
-    "extrablack",
-]
-SUBFAMILY_ORDER = {}
-for i, sf in enumerate(__SUBFAMILY_ORDER__):
-    SUBFAMILY_ORDER[sf] = i
-
-def __get_subfamily_priority__( subname:str)->int:
-    subname = subname.lower().replace(" ","")
-    matchorder = []
-    for tgt in SUBFAMILY_ORDER:
-        match = re.match(f".*{tgt}.*", subname)
-        sz = 0
-        if match:
-            span = match.span()
-            sz = span[1]-span[0]
-        matchorder.append( (sz, tgt) )
-    closestmatch = sorted(matchorder)[-1][1]
-    # print( subname, closestmatch, SUBFAMILY_ORDER[closestmatch])
-    return SUBFAMILY_ORDER[closestmatch]
-
-def sort_family( family_list:list[str]):
-    d_name_info: dict[NameInfo] = name_info()
-    return sorted( family_list, key=lambda item: __get_subfamily_priority__( d_name_info[item].subfamily ) )
-
-def sort_family_menu( menu_items:list[str], menu_labels:list[str]) -> tuple[list[str],list[str]]:
-    """
-    Sort an already-created pair of menu_items and menu_labels. This sorts by the menu_labels,
-    which are expected to have a standard name for font weights in their name.
-    
-    For example:
-        [ "Heavy", "Thin", "Book"] would be sorted to [ "Thin", "Book", "Heavy"],with the menu items sorted in the same order.
-
-    Args:
-        menu_items(list[str]): A list of parameter values you will be replacing from the menu. This is NOT used for sorting.
-        menu_labels(list[str]): A list of font subfamilies. This is the list used for sorting.
-    """
-    paired_lists = sorted(zip(menu_items, menu_labels), key=lambda item: __get_subfamily_priority__(item[1]) )
-    menu_items, menu_labels = zip(*paired_lists)
-    return list(menu_items), list(menu_labels)
-
-def get_family_menu( family:str, do_sort=True) -> tuple[list[str],list[str]]:
-    """
-    Using a family name, output a pair of menu items and labels for chosing a different font within the same family.
-
-    Args:
-        family(str): Family name, almost always coming from fontFinder.name_info()
-        do_sort(bool): Enable sorting of the menu. Check sort_family_menu() for more information on the sorting method.
-    """
-    in_family = families(family)
-    if in_family:
-        menuitems = []
-        menulabels = []
-        for fontname in families:
-            finfo = name_info(fontname)
-            menuitems.append(fontname)
-            menulabels.append(finfo.subfamily)
-    if do_sort:
-        return sort_family_menu( menuitems, menulabels)
-    else:
-        return menuitems, menulabels
-
-
 
 # # --------------------------------------------------------------------------------------------------------------------------------
 # # --------------------------------------------------------------------------------------------------------------------------------
@@ -612,7 +476,7 @@ def get_family_menu( family:str, do_sort=True) -> tuple[list[str],list[str]]:
 #     1) A value which indicates that a config file should be read for the search directories
 #     2) A set of string paths (both relative and not) to iterate though.
 #         These paths can either append or remove values from the paths in the config file
-        
+
 #         Example config syntax:
 #             ||$Path/to/FOLDER|ALL|+|R3||
 #             ||$Path/to/FOLDER|ALL|+|R3||C://Andrew/Downloads/path/to/FOLDER|WIN|+|R3||

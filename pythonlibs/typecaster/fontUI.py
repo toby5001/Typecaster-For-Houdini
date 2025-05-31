@@ -585,11 +585,14 @@ def font_selection_dropdown( node:hou.OpNode=None):
     return menu
 
 
-# """
-# Functions for building specific subcomponents of the interface.
+"""
+-----------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------
+Semi-internal functions for building specific subcomponents of the interface.
 
-# These are not expected to be called directly in the interface or by the end user
-# """
+These are not expected to be called directly in the interface or by the end user
+
+"""
 
 
 def _get_collection_menu_(fontpath:Path) -> tuple[list[str],list[str]]:
@@ -621,7 +624,16 @@ def _get_collection_menu_(fontpath:Path) -> tuple[list[str],list[str]]:
     menu_items, menu_labels = zip(*paired_lists)
     return menu_items, menu_labels
 
-def __get_subfamily_priority__( subname:str)->int:
+def _get_subfamily_priority_( subname:str)->int:
+    """Get the priority number of the closest match to the input
+    subfamily name.
+
+    Args:
+        subname (str): Subfamily name to search against. This is converted to lowercase and has all of it's spaces removed before comparison.
+
+    Returns:
+        int: Priority number for the subfamily.
+    """
     subname = subname.lower().replace(" ","")
     matchorder = []
     for tgt in SUBFAMILY_ORDER:
@@ -645,7 +657,7 @@ def _sort_family_( family_list:list[str]):
         list[str]: Sorted version of family_list
     """
     d_name_info: dict[fontFinder.NameInfo] = fontFinder.name_info()
-    return sorted( family_list, key=lambda item: __get_subfamily_priority__( d_name_info[item].subfamily ) )
+    return sorted( family_list, key=lambda item: _get_subfamily_priority_( d_name_info[item].subfamily ) )
 
 
 def _sort_family_menu_( menu_items:list[str], menu_labels:list[str]) -> tuple[list[str],list[str]]:
@@ -660,11 +672,11 @@ def _sort_family_menu_( menu_items:list[str], menu_labels:list[str]) -> tuple[li
         menu_items(list[str]): A list of parameter values you will be replacing from the menu. This is NOT used for sorting.
         menu_labels(list[str]): A list of font subfamilies. This is the list used for sorting.
     """
-    paired_lists = sorted(zip(menu_items, menu_labels), key=lambda item: __get_subfamily_priority__(item[1]) )
+    paired_lists = sorted(zip(menu_items, menu_labels), key=lambda item: _get_subfamily_priority_(item[1]) )
     menu_items, menu_labels = zip(*paired_lists)
     return list(menu_items), list(menu_labels)
-    
-    
+
+
 def _get_family_menu_( font_parm_info: FontParmInfo) -> tuple[list[str],list[str]]:
     """Using a family name, output a pair of menu items and labels for chosing a different font within the same family.
 
