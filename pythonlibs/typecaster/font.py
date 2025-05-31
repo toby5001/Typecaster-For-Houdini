@@ -2,18 +2,22 @@ import sys
 from importlib import import_module
 from typecaster.fontFinder import name_info, path_to_names
 from functools import cached_property
-from os import PathLike
 from fontgoggles import font as fgfont
 from pathlib import Path
 
-def getOpener(fontPath: PathLike):
+def getOpener(fontPath: Path):
+    """Get the correct opener for fontgoggles. Unlike the original function,
+    the font is assumed to be valid by the time this function is called.
+
+    Args:
+        fontPath (Path): Path to a valid font.
+
+    Returns:
+        _type_: The font opener class used by fontgoggles to load a specific font type.
+    """
     openerKey = fgfont.sniffFontType(fontPath)
     if openerKey is None:
-        tags = name_info( path_to_names(fontPath)[0] ).tags
-        if tags.get('source','').lower() == 'adobe':
-            openerKey = "otf"
-        else:
-            # font = ttLib.TTFont(fontPath)
+        if path_to_names(fontPath):
             openerKey = "otf"
     assert openerKey is not None
     openerSpec = fgfont.fontOpeners[openerKey][1]
@@ -22,10 +26,6 @@ def getOpener(fontPath: PathLike):
     openerClass = getattr(module, className)
     return openerClass
 
-# ctf.getOpener = getOpener
-# Font = ctf.Font
-# FontNotFoundException = ctf.FontNotFoundException
-# FontCache = ctf.FontCache
 
 class FontNotFoundException(Exception):
     pass
@@ -37,10 +37,10 @@ FontCache = {}
 
 class Font():
     # TODO support glyphs?
-    def __init__(self,
-        path,
-        number=0,
-        ):
+    def __init__(self, path, number=0, ):
+        """Initialize a Font object. This should almost never be directly called.
+        It is highly reccomended to call Font.Cacheable() instead
+        """
         if isinstance(path, Path):
             self.path = path
         else:
@@ -159,6 +159,20 @@ class Font():
 
     @staticmethod
     def Cacheable( path:Path, number=0):
+        """Using a path and number, either retreive an existing font object, or create and cache a new one.
+        While the functionality borrows significantly from coldtype.text.font.Font.Cacheable,
+        this more cut-down version does very minimal checking for if the font is valid, only if the path exists.
+
+        Args:
+            path (Path): Path object to the font.
+            number (int, optional): Used if the font path is to a collection to specify a particular font within. Defaults to 0.
+
+        Raises:
+            FontNotFoundException: Gets rasied if the path does not exist.
+
+        Returns:
+            _type_: Returns a Font object.
+        """
         actual_path = None
         if number > 0:
             # Incorporate the font number into the dict key, if needed
