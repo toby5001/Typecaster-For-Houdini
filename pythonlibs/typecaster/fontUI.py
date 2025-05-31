@@ -700,9 +700,3 @@ def _get_family_menu_( font_parm_info: FontParmInfo) -> tuple[list[str],list[str
                 menulabels.append(finfo.subfamily)
             menuitems, menulabels = _sort_family_menu_(menuitems, menulabels)
     return menuitems, menulabels
-
-if __name__ == "__main__":
-    val = ( Path("~/Downloads").resolve(), 0, 1)
-    print( val )
-    print( repr(val) )
-    print( str(val) )
