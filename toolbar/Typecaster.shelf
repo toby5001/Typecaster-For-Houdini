@@ -10,45 +10,82 @@
     <memberTool name="convertFontNode"/>
   </toolshelf>
 
-  <tool name="convertFontNode" label="Convert Font Node" icon="PLASMA_App">
+  <tool name="convertFontNode" label="Convert Font to Typecaster Font" icon="PLASMA_App">
+    <toolMenuContext name="network">
+      <contextNetType>SOP</contextNetType>
+    </toolMenuContext>
+    <toolSubmenu>Typecaster/scripts</toolSubmenu>
     <script scriptType="python"><![CDATA[import hou
+
+    
+def parm_from_parm(dst_parm:hou.Parm|hou.ParmTuple, src_parm:hou.Parm|hou.ParmTuple, src_index=None, dst_index=None):
+    dst_is_tuple = isinstance(dst_parm,hou.ParmTuple)
+    src_is_tuple = isinstance(src_parm,hou.ParmTuple)
+    if dst_is_tuple and dst_index is not None:
+        dst_parm:hou.Parm = dst_parm[dst_index]
+        dst_is_tuple = False
+    
+    if src_is_tuple and src_index is not None:
+        src_parm:hou.Parm = src_parm[src_index]
+        src_is_tuple = False
+    
+    if src_is_tuple and dst_is_tuple:
+        for i, dst_parm in enumerate(dst_parm):
+            try:
+                dst_parm.setFromParm(src_parm[i])
+            except IndexError:
+                pass
+    elif not src_is_tuple and not dst_is_tuple:
+        dst_parm.setFromParm(src_parm)
+    else:
+        raise Exception(f"Unexpected case for setfromparm! Destination: {dst_parm}, Source: {src_parm}")
+
 
 for node in hou.selectedNodes():
     node : hou.OpNode
     if node.type().name() == "font":
-        parent_node = node.parent()
+        parent_node: hou.OpNode = node.parent()
         nodename = f"tc_{node.name()}"
         parms = {}
         parms['pack_method'] = 1
+        parms['leading_follow_spacing'] = 1
         triggercallback = ('font',)
-
-        parms['font'] = node.evalParm('file')
-        parms['text'] = node.evalParm('text')
-
-        parms['align_line_menu'] = node.evalParm('halign')
-        parms['block_align_y_menu'] = node.evalParm('valign')-1
-        
-        parms['t'] = node.evalParmTuple('t')
-        parms['r'] = node.evalParmTuple('r')
-        parms['s'] = node.evalParmTuple('s') + (1.0,)
-
-        parms['font_size'] = node.evalParm('fontsize')
-        parms['poly_lod'] = node.evalParm('lod')
-
-        tracking = node.evalParmTuple('tracking')
-        parms['tracking'] = tracking[0]*parms['font_size']
-        parms['leading'] = tracking[1]*parms['font_size']
 
         hole = node.evalParm('hole')
         if hole != 1:
-            parms['native_text_attributes'] = 3
-        parms['native_text_attributes'] = node.evalParm('addattrib')
+            parms['hole_method'] = 3
 
-        tcnode : hou.OpNode = parent_node.createNode('ADL::typecaster_font', node_name=nodename)
+        tcnode: hou.OpNode = parent_node.createNode(node_type_name='typecaster_font', node_name=nodename )
+        tcnode.setName( nodename, unique_name=True)
+        pos = node.position()
+        pos[0] += 1
+        pos[1] -= 0.5
+        tcnode.setPosition( pos )
         tcnode.setParms(parms)
+        
+        parm_from_parm( dst_parm=tcnode.parm('font'), src_parm=node.parm('file'))
+        parm_from_parm( dst_parm=tcnode.parm('text'), src_parm=node.parm('text'))
+        parm_from_parm( dst_parm=tcnode.parm('halign'), src_parm=node.parm('halign'))
+        parm_from_parm( dst_parm=tcnode.parm('valign'), src_parm=node.parm('valign'))
+        parm_from_parm( dst_parm=tcnode.parm('fontsize'), src_parm=node.parm('fontsize'))
+        parm_from_parm( dst_parm=tcnode.parm('lod'), src_parm=node.parm('lod'))
+        parm_from_parm( dst_parm=tcnode.parm('addattrib'), src_parm=node.parm('addattrib'))
+        
+        parm_from_parm( dst_parm=tcnode.parmTuple('t'), src_parm=node.parmTuple('t'))
+        parm_from_parm( dst_parm=tcnode.parmTuple('r'), src_parm=node.parmTuple('r'))
+        parm_from_parm( dst_parm=tcnode.parmTuple('s'), src_parm=node.parmTuple('s'))
+        
+        parm_from_parm( dst_parm=tcnode.parm('tracking'), src_parm=node.parmTuple('tracking')[0])
+        parm_from_parm( dst_parm=tcnode.parm('leading') , src_parm=node.parmTuple('tracking')[1])
+        
         for tgt in triggercallback:
             parm: hou.Parm = tcnode.parm(tgt)
-            parm.pressButton()
-        # print(parms.get('file'))]]></script>
+            parm.pressButton()]]></script>
+  </tool>
+
+  <tool name="installTypecaster" label="Install Typecaster" icon="PLASMA_App">
+    <toolSubmenu>Typecaster/scripts</toolSubmenu>
+    <script scriptType="python"><![CDATA[from typecaster import installer
+installer.install()]]></script>
   </tool>
 </shelfDocument>
