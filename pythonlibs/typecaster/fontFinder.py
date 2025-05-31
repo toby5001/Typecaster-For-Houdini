@@ -5,6 +5,7 @@ The general goal of this submodule it to provide tools for identifying available
 
 """
 
+import json
 from find_system_fonts_filename import get_system_fonts_filename
 from pathlib import Path, WindowsPath, PosixPath
 from fontTools import ttLib
@@ -204,27 +205,33 @@ def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
 # It could be potentially useful to get the information from this when Houdini has many python
 # sessions running in something like PDG, where the initial time to locate all of the fonts
 # could be meaningful (assuming that the workers are having their python state reset)
-if False:
-    import json
+def __info_to_jsondump__(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_cache.json", indent=4):
+    """Dump the the primary font info to JSON.
 
+    Args:
+        to_file (bool, optional): Output to a file. Defaults to False.
+        file_path (str, optional): File path to write to. Defaults to "/.temp/fontFinder_cache.json".
+        indent (int, optional): Number of indents to use when formatting. Defaults to 4.
+
+    Returns:
+        str|None: If to_file was False, the JSON will be returned as a string. Otherwise nothing will be returned.
+    """
     # Monkeypatching method of complex object compatibility taken from
     # this stackoverflow answer: https://stackoverflow.com/a/38764817
-    from json import JSONEncoder
-
-    def info_to_jsondump(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_cache.json", indent=4):
-        def _default(self, obj):
-            return getattr(obj.__class__, "to_json", _default.default)(obj)
-        _default.default = JSONEncoder().default
-        JSONEncoder.default = _default
-        
-        data = {'name_info': name_info(), 'families': families(), 'path_to_names':path_to_names() }
-        if to_file:
-            path = to_real_path(file_path)
-            path.parent.mkdir(exist_ok=True)
-            with path.open("w") as f:
-                json.dump(data, f, indent=indent)
-        else:
-            return json.dumps(data,indent=indent)
+    # from json import JSONEncoder, dump as jsondump, dumps as jsondumps
+    def _default(self, obj):
+        return getattr(obj.__class__, "to_json", _default.default)(obj)
+    _default.default = json.JSONEncoder().default
+    json.JSONEncoder.default = _default
+    
+    data = {'name_info': name_info(), 'families': families(), 'path_to_names':path_to_names() }
+    if to_file:
+        path = to_real_path(file_path)
+        path.parent.mkdir(exist_ok=True)
+        with path.open("w") as f:
+            json.dump(data, f, indent=indent)
+    else:
+        return json.dumps(data,indent=indent)
 
 # --------------------------------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
@@ -272,7 +279,6 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
         if fontName not in _families_[fontFamily]:
             _families_[fontFamily].append(fontName)
         # else:
-        #     print("HIT")
         #     _families_[fontFamily].append(fontName)
 
 def __iterate_over_fontfiles__(found_fonts:list[str]):
