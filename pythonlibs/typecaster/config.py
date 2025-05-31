@@ -1,5 +1,7 @@
 """
+
 Submodule for parsing Typecaster's config file.
+
 """
 
 from json import load as json_load

@@ -1,3 +1,9 @@
+"""
+
+Submodule for functionality related to updating and parsing the interface of Typecaster HDAs.
+
+"""
+
 import hou, re
 from typing import NamedTuple
 from pathlib import Path
@@ -203,6 +209,7 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
 
     validfont = False
     if fontparminfo.validfont:
+        # Do I need to do this any more? Or is fontparminfo.validfont reliable enough.
         try:
             targetfont = tcf.Font.Cacheable(fontparminfo.path, number=fontparminfo.number)
             validfont = True

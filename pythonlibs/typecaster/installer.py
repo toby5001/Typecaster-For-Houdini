@@ -1,6 +1,7 @@
 """
-# TODO:
-Should this be in a scripts folder or part of the pythonlibs folder?
+
+Submodule for installing and updating Typecaster
+
 """
 import os, subprocess, sys
 from pathlib import Path as PathlibPath

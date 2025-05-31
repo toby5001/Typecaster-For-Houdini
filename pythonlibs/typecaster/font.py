@@ -1,3 +1,11 @@
+"""
+
+Submodule for working with individual fonts in Typecaster.
+If you want to access individual font information beyond what
+typecaster.FontFinderprovides, this is the best way to do so.
+
+"""
+
 import sys
 from importlib import import_module
 from typecaster.fontFinder import name_info, path_to_names

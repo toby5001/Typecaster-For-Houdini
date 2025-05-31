@@ -1,7 +1,7 @@
 """
 
 Typecaster's submodule for functionality related to locating fonts, identifying their basic properties, and building interfaces for them.
-The general goal of this submodule it to provide tools for identifying available fonts and offer different ways of exposing them to the user.
+The general goal of this submodule is to provide tools for identifying available fonts and offer different ways of exposing them to the user.
 
 """
 
