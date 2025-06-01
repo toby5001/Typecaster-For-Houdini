@@ -1,9 +1,10 @@
 {
+    "auto_install_python_dependencies": 1,
     "searchpaths": {
         "COMMENT": [
             "INFO--------------------------------------",
             "------------------------------------------",
-            "There are a few different ways to list search paths, depending on your preference:",
+            "There are two main ways to list search paths, depending on your preference:",
             "1) A simple path to the folder",
             "2) A dictionary with a path, source_tag (optional), and priority (optional), max_depth_override (optional, rarely needed)",
             "PARAMETERS--------------------------------",
@@ -33,9 +34,9 @@
                 "source_tag": "Downloads"
             },
             {
-                "path": "C:/path/to/your/downloads/folder",
-                "source_tag": "Downloads",
-                "max_depth_override": 2,
+                "path": "/path/to/a/different/folder",
+                "source_tag": "Custom_1",
+                "max_depth_override": 1,
                 "priority": 1
             }
         ],
@@ -51,12 +52,12 @@
                 "priority": 1
             },
             {
-                "path" : "$HIP/fonts",
-                "source_tag" : "$HIP"
+                "path": "$HIP/fonts",
+                "source_tag": "$HIP"
             },
             {
-                "path" : "$JOB/fonts",
-                "source_tag" : "$JOB"
+                "path": "$JOB/fonts",
+                "source_tag": "$JOB"
             }
         ],
         "windows": [],
