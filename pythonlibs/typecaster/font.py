@@ -11,6 +11,7 @@ from importlib import import_module
 from typecaster.fontFinder import name_info, path_to_names
 from functools import cached_property
 from fontgoggles import font as fgfont
+from fontTools.ttLib import TTLibError
 from pathlib import Path
 
 def getOpener(fontPath: Path):
@@ -69,8 +70,11 @@ class Font():
         if self._loaded:
             return self
         else:
-            self.font.load(sys.stderr.write)
-            self._loaded = True
+            try:
+                self.font.load(sys.stderr.write)
+                self._loaded = True
+            except TTLibError:
+                raise FontNotFoundException
             return self
 
     @cached_property
