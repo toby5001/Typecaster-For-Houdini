@@ -1,2 +1,2 @@
 # Typecaster-For-Houdini
-A Complete toolkit for working with fonts within Houdini
+A complete toolkit for working with fonts in Houdini

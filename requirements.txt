@@ -1,5 +1,5 @@
 Brotli==1.1.0
-FindSystemFontsFIlename==0.3.2
+FindSystemFontsFilename==0.3.2
 fonttools[woff,ufo,unicode,pathops]==4.57.0
 
 # newer python-bidi is completely incompatible with how we use it
