@@ -268,11 +268,12 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
     if fontName not in _name_info_:
         _name_info_[fontName] = NameInfo( path, number, fontFamily, subfamily=fontSubFamily, tags=tags, relative_path=relative_path )
     
-    if path.as_posix() not in _path_to_name_mappings_:
-        _path_to_name_mappings_[path.as_posix()] = {number:fontName}
+    posixpath = path.as_posix()
+    if posixpath not in _path_to_name_mappings_:
+        _path_to_name_mappings_[posixpath] = {number:fontName}
     else:
-        if number not in _path_to_name_mappings_[path]:
-            _path_to_name_mappings_[path.as_posix()][number] = fontName
+        if number not in _path_to_name_mappings_[posixpath]:
+            _path_to_name_mappings_[posixpath][number] = fontName
 
     # Maybe this should be a set since I don't want repeated items anyways?
     if fontFamily not in _families_:
