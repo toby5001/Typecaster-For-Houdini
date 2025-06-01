@@ -95,7 +95,10 @@ del __SUBFAMILY_ORDER__
 PARMNAMING = {
     "1.0" : {
         'font':'font',
-        'font_number':'font_collection_number'
+        'font_number':'font_collection_number',
+        
+        'font_family_selector':'font_select_in_family',
+        'font_instances':'font_instances'
     },
 }
 
@@ -145,10 +148,14 @@ def interpret_font_parms( targetnode:hou.OpNode, read_collection_fontnumber=True
         if read_collection_fontnumber and font_is_collection:
             numberparm:hou.Parm = targetnode.parm(parmnames['font_number'])
             if numberparm:
-                fontnumber:int = numberparm.eval()
-        names = fontFinder.path_to_names(fontpath)
-        if names:
-            fontname = names[fontnumber]
+                fontnumber:int = eval(numberparm.evalAsString())
+        name_mappings = fontFinder.path_to_name_mappings(fontpath)
+        if name_mappings:
+            try:
+                fontname = name_mappings[fontnumber]
+            except KeyError:
+                # Didn't have a valid number. Use the first name in the dict instead
+                fontname = list(name_mappings.values())[0]
             info = fontFinder.name_info(fontname)
             fontfamily = info.family
     elif info:
@@ -162,6 +169,7 @@ def interpret_font_parms( targetnode:hou.OpNode, read_collection_fontnumber=True
         validfont=False
     finfo = FontParmInfo(fontpath, fontnumber, fontfamily, fontname, info, fontparm_is_filepath, font_is_collection, validfont)
     return finfo
+
 
 def interpret_font_parms_min( targetnode:hou.OpNode, parm_naming_version="1.0" ) -> tuple[Path,int,bool]:
     """Interpret the font parameters for a given Typecaster font node, but only the minimum amount of information to construct a TTFont object.
@@ -181,7 +189,7 @@ def interpret_font_parms_min( targetnode:hou.OpNode, parm_naming_version="1.0" )
     if fontpath.exists():
         fontnumberparm:hou.Parm = targetnode.parm(parmnames['font_number'])
         if fontnumberparm:
-            fontnumber = fontnumberparm.eval()
+            fontnumber = eval(fontnumberparm.evalAsString())
     else:
         info =fontFinder.name_info(fontparmval)
         if info:
@@ -190,6 +198,7 @@ def interpret_font_parms_min( targetnode:hou.OpNode, parm_naming_version="1.0" )
         else:
             validfont = False
     return fontpath, fontnumber, validfont
+
 
 def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
     """Update all font-dependent components of the interface. The functionality can be split into two categories:
@@ -206,7 +215,6 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
     if not node:
         node:hou.OpNode = hou.pwd()
     fontparminfo = interpret_font_parms(node, read_collection_fontnumber= triggersrc=='collection')
-
     validfont = False
     if fontparminfo.validfont:
         # Do I need to do this any more? Or is fontparminfo.validfont reliable enough.
@@ -265,10 +273,11 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
                 if parm:
                     if parm.eval() >= len(menuitems):
                         parm.set(0)
-                    
-                collectionmenu = hou.IntParmTemplate( parmname, 'Collection Font', 1,
+                
+                collectionmenu = hou.MenuParmTemplate( parmname, 'Collection Font',
                             menu_items = menuitems,
                             menu_labels = menulabels,
+                            default_value = menuitems.index(min(menuitems)),
                             script_callback = "kwargs['node'].hdaModule().update_font_parms(triggersrc='collection')",
                             script_callback_language=hou.scriptLanguage.Python )
                 ptg.insertBefore("reload_parms", collectionmenu)
@@ -615,23 +624,26 @@ def _get_collection_menu_(fontpath:Path) -> tuple[list[str],list[str]]:
     fontpath = fontpath.resolve()
     menu_items = []
     menu_labels = []
-    names = fontFinder.path_to_names(fontpath)
-    if names:
+    subfamily_names = []
+    name_mappings = fontFinder.path_to_name_mappings(fontpath)
+    if name_mappings:
         infos = fontFinder.name_info()
-        for name in names:
-            info = infos[name]
+        for number in name_mappings:
+            name = name_mappings[number]
+            info:fontFinder.NameInfo = infos[name]
+            subfamily_names.append(info.subfamily)
             menu_items.append( str(info.number) )
             menu_labels.append(name)
     else:
         collection = TTCollection(fontpath)
         for number, ttfont in enumerate(collection.fonts):
-            name = fontFinder.get_best_names(ttfont)[0]
+            name, family, subfamily = fontFinder.get_best_names(ttfont)
+            subfamily_names.append(subfamily)
             menu_items.append( str(number) )
-            menu_labels.append(name)
-    
-    paired_lists = sorted(zip(menu_items, menu_labels))
-    menu_items, menu_labels = zip(*paired_lists)
+            menu_labels.append(name)  
+    menu_items, menu_labels =_sort_family_menu_(menu_items=menu_items,menu_labels=menu_labels,subfamily_names=subfamily_names)
     return menu_items, menu_labels
+
 
 def _get_subfamily_priority_( subname:str)->int:
     """Get the priority number of the closest match to the input
@@ -670,9 +682,10 @@ def _sort_family_( family_list:list[str]):
     return sorted( family_list, key=lambda item: _get_subfamily_priority_( d_name_info[item].subfamily ) )
 
 
-def _sort_family_menu_( menu_items:list[str], menu_labels:list[str]) -> tuple[list[str],list[str]]:
+def _sort_family_menu_( menu_items:list[str], menu_labels:list[str], subfamily_names:list[str]=None) -> tuple[list[str],list[str]]:
     """
-    Sort an already-created pair of menu_items and menu_labels. This sorts by the menu_labels,
+    Sort an already-created pair of menu_items and menu_labels. This sorts by the menu_labels
+    or by a separate subfamily_names list,
     which are expected to have a standard name for font weights in their name.
     
     For example:
@@ -681,9 +694,16 @@ def _sort_family_menu_( menu_items:list[str], menu_labels:list[str]) -> tuple[li
     Args:
         menu_items(list[str]): A list of parameter values you will be replacing from the menu. This is NOT used for sorting.
         menu_labels(list[str]): A list of font subfamilies. This is the list used for sorting.
+        sufamily_names(list[str], optional): A list of font subfamilies. This is used instead of menu_labels if it is specified.
+    Returns:
+        tuple[list[str],list[str]]: Sorted versions of menu_items and menu_labels
     """
-    paired_lists = sorted(zip(menu_items, menu_labels), key=lambda item: _get_subfamily_priority_(item[1]) )
-    menu_items, menu_labels = zip(*paired_lists)
+    if subfamily_names:
+        paired_lists = sorted(zip(menu_items, menu_labels, subfamily_names), key=lambda item: _get_subfamily_priority_(item[2]) )
+        menu_items, menu_labels, subfamily_names = zip(*paired_lists)
+    else:
+        paired_lists = sorted(zip(menu_items, menu_labels), key=lambda item: _get_subfamily_priority_(item[1]) )
+        menu_items, menu_labels = zip(*paired_lists)
     return list(menu_items), list(menu_labels)
 
 

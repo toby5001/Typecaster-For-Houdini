@@ -24,8 +24,8 @@ PLATFORM = get_platform_system().upper()
 
 _families_ = {}
 _name_info_ = {}
-_path_to_names_ = {}
-add_config_dependencies(_families_, _name_info_, _path_to_names_)
+_path_to_name_mappings_ = {}
+add_config_dependencies(_families_, _name_info_, _path_to_name_mappings_)
 
 COLLECTIONSUFFIXES = {".ttc", ".otc"}
 FONTFILES = {".ttf": "", ".ttc": "", ".otf": "", ".otc": "", ".woff": "", ".woff2": ""}
@@ -49,7 +49,8 @@ elif PLATFORM == "LINUX":
 try:
     from hou import text
     def to_real_path(path:str)->Path:
-        """Take a path string and convert it to a pathlib path. This will evaluate the string in a way as close to Houdini as possible.
+        """Take a path string with variables and convert it to a pathlib path.
+        This will evaluate the string in a way as close to Houdini as possible.
 
         Args:
             path (str): Pathstring to convert
@@ -66,7 +67,8 @@ try:
 except ImportError:
     from os.path import expandvars
     def to_real_path(path:str)->Path:
-        """Take a path string and convert it to a pathlib path. This is a fallback if being run outside of Houdini.
+        """Take a path string with variables and convert it to a pathlib path.
+        This is a fallback if being run outside of Houdini.
 
         Args:
             path (str): Pathstring to convert
@@ -80,7 +82,7 @@ except ImportError:
 def __clear_font_caches__():
     _families_.clear()
     _name_info_.clear()
-    _path_to_names_.clear()
+    _path_to_name_mappings_.clear()
 
 
 class NameInfo:
@@ -224,7 +226,7 @@ def __info_to_jsondump__(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_
     _default.default = json.JSONEncoder().default
     json.JSONEncoder.default = _default
     
-    data = {'name_info': name_info(), 'families': families(), 'path_to_names':path_to_names() }
+    data = {'name_info': name_info(), 'families': families(), 'path_to_name_mappings':path_to_name_mappings() }
     if to_file:
         path = to_real_path(file_path)
         path.parent.mkdir(exist_ok=True)
@@ -266,20 +268,18 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
     if fontName not in _name_info_:
         _name_info_[fontName] = NameInfo( path, number, fontFamily, subfamily=fontSubFamily, tags=tags, relative_path=relative_path )
     
-    # Maybe these 2 should be sets since I don't want repeated items anyways?
-    if path not in _path_to_names_:
-        _path_to_names_[path.as_posix()] = [fontName,]
+    if path.as_posix() not in _path_to_name_mappings_:
+        _path_to_name_mappings_[path.as_posix()] = {number:fontName}
     else:
-        if fontName not in _path_to_names_[path]:
-            _path_to_names_[path.as_posix()].append(fontName)
+        if number not in _path_to_name_mappings_[path]:
+            _path_to_name_mappings_[path.as_posix()][number] = fontName
 
+    # Maybe this should be a set since I don't want repeated items anyways?
     if fontFamily not in _families_:
          _families_[fontFamily] = [fontName,]
     else:
         if fontName not in _families_[fontFamily]:
             _families_[fontFamily].append(fontName)
-        # else:
-        #     _families_[fontFamily].append(fontName)
 
 def __iterate_over_fontfiles__(found_fonts:list[str]):
     """Iterate over a list of path strings and add them to the cache, handling any font collection files found as well.
@@ -431,7 +431,7 @@ def update_font_info():
     """Search through all of the defined font search paths and rebuild all of
     the information associated with the fonts that are found.
     
-    This will query the current config values, but will NOT get new values.
+    This will query the current config values, but will NOT get new config values.
     """
     # print("Updating font info")
     __clear_font_caches__()
@@ -457,17 +457,13 @@ def update_font_info():
     __add_fonts_from_relative_paths__( custom_searchpaths[1] )
     __add_fonts_from_relative_paths__( custom_searchpaths[2] )
 
-    # _user_families_.clear()
-    # _user_name_info_.clear()
-    # _user_path_to_names_.clear()
-
     # If No fonts were found (highly unlikely), add a fake font so that the
     # cache checkers don't endlessley refresh
-    if not _families_ or not _name_info_ or not _path_to_names_:
+    if not _families_ or not _name_info_ or not _path_to_name_mappings_:
         msg = 'Typecaster-NoFontsFound'
         _families_[msg] = [msg,]
         _name_info_[msg] = NameInfo( Path(msg), 0, msg )
-        _path_to_names_[Path(msg)] = [msg,]
+        _path_to_name_mappings_[Path(msg)] = {0:msg}
 
 
 # --------------------------------------------------------------------------------------------------------------------------------
@@ -489,35 +485,44 @@ def families(family:str=None) -> (dict[str]|list):
         update_font_info()
     return __lookup_if_specified__(_families_, family)
 
-def name_info(name:str=None) -> (dict[NameInfo]|NameInfo):
+def name_info(name:str=None) -> (dict[str,NameInfo]|NameInfo):
     """
     Get all the information associated with a font name.
     If a font name is given, a corrensponding NameInfo object will be directly returned.
     Otherwise, a dictionary of all name infos will be returned, with the keys being the font names.
     Args:
-        name(str): If specified, the name of the font you would like the information for.
+        name(str, optional): The name of the font you would like the information for. Defaults to None.
+        
+    This will also initialize all related values if they haven't been already.
     """
-    """Returns a dictionary which will give the information associated with a font name.
-    This will also initialize all related values if they haven't been already."""
     if not _name_info_:
         update_font_info()
     return __lookup_if_specified__(_name_info_, name)
 
-def path_to_names(path:Path|str=None) -> (dict[Path,list[str]]|list[str]):
+
+def path_to_name_mappings(path:Path|str=None) -> (dict[Path,dict[int,str]]|dict[int,str]):
     """
-    Used for converting a path to a list of font names. If the path is to a single font, the list will only have one element.
-    If the path is to a collection, the list will be all of the font names which the collection contains.
+    Used for converting a path to a dict of font names, structured as key-value pairs of
+    numbers and names. If the path is to a single font, the dict will only have one
+    element. If the path is to a collection, the dict will have all of the font names
+    for the collection.
     
-    - If empty, this returns a dictionary which will give the corresponding font name for a given path (if it exists).
-    - If a path is specified, the result of the dictionary will be returned
+    Args:
+        path(Path, optional): The specific path you would like to look up. Defaults to None.
+    
+    Returns:
+        dict[Path,dict[int,str]]|dict[int,str]: If no argument is given, this returns a 
+            dictionary which will give the dictionary of font names for a given path 
+            (if it exists). If a path is specified, the result of the dictionary will be
+            returned.
 
     This will also initialize all related values if they haven't been already.
     """
-    if not _path_to_names_:
+    if not _path_to_name_mappings_:
         update_font_info()
     if path and isinstance( path, Path):
         path = path.as_posix()
-    return __lookup_if_specified__(_path_to_names_, path)
+    return __lookup_if_specified__(_path_to_name_mappings_, path)
 
 
 # # --------------------------------------------------------------------------------------------------------------------------------
