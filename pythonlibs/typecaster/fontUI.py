@@ -4,6 +4,7 @@ Submodule for functionality related to updating and parsing the interface of Typ
 
 """
 
+from __future__ import annotations
 import hou, re
 from typing import NamedTuple
 from pathlib import Path

@@ -5,6 +5,7 @@ The general goal of this submodule is to provide tools for identifying available
 
 """
 
+from __future__ import annotations
 import json
 from find_system_fonts_filename import get_system_fonts_filename
 from pathlib import Path, WindowsPath, PosixPath
@@ -434,7 +435,7 @@ def update_font_info():
     
     This will query the current config values, but will NOT get new config values.
     """
-    # print("Updating font info")
+    # print("Updating Typecaster font info")
     __clear_font_caches__()
     config = get_config()
     
