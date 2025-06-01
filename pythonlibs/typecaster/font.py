@@ -8,7 +8,7 @@ typecaster.FontFinderprovides, this is the best way to do so.
 
 import sys
 from importlib import import_module
-from typecaster.fontFinder import name_info, path_to_names
+from typecaster.fontFinder import path_to_name_mappings
 from functools import cached_property
 from fontgoggles import font as fgfont
 from fontTools.ttLib import TTLibError
@@ -26,7 +26,7 @@ def getOpener(fontPath: Path):
     """
     openerKey = fgfont.sniffFontType(fontPath)
     if openerKey is None:
-        if path_to_names(fontPath):
+        if path_to_name_mappings(fontPath):
             openerKey = "otf"
     assert openerKey is not None
     openerSpec = fgfont.fontOpeners[openerKey][1]
