@@ -16,7 +16,7 @@ TYPECASTER_ROOT_PATH = Path( os.getenv('TYPECASTER') ).resolve()
 
 REQUIREMENTS_PATH = ( TYPECASTER_ROOT_PATH / "requirements.txt" ).resolve()
 
-PYTHTON_VERSION = f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}"
+PYTHTON_VERSION = float(f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}")
 PYTHON_INSTALLFOLDERNAME = f"python{PYTHTON_VERSION}libs"
 
 TYPECASTER_PYTHON_INSTALL_PATH = (TYPECASTER_ROOT_PATH / PYTHON_INSTALLFOLDERNAME).resolve()
@@ -119,7 +119,7 @@ def check_install_pip():
 
         pipgetpath = (Path(os.getenv("HOUDINI_TEMP_DIR"))/"get-pip.py").resolve()
         pipgetpath.parent.mkdir(exist_ok=True)
-        if float(PYTHTON_VERSION) < 3.9:
+        if PYTHTON_VERSION < 3.9:
             url = f"https://bootstrap.pypa.io/pip/{PYTHTON_VERSION}/get-pip.py"
         else:
             url = f"https://bootstrap.pypa.io/pip/get-pip.py"
