@@ -7,11 +7,14 @@ The general goal of this submodule is to provide tools for identifying available
 
 from __future__ import annotations
 import json
-from find_system_fonts_filename import get_system_fonts_filename
 from pathlib import Path, WindowsPath, PosixPath
 from fontTools import ttLib
 from platform import system as get_platform_system
 from typecaster.config import get_config, add_config_dependencies
+try:
+    from find_system_fonts_filename import get_system_fonts_filename
+except ImportError:
+    get_system_fonts_filename = None
 
 # Suppress name table errors by disabling logging.
 import logging
@@ -452,8 +455,9 @@ def update_font_info():
         # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
         # __add_fonts_from_relative_path__("$JOB/fonts", tags={'source':'$JOB'})
 
-        found_fonts = get_system_fonts_filename()
-        __iterate_over_fontfiles__(found_fonts)
+        if get_system_fonts_filename:
+            found_fonts = get_system_fonts_filename()
+            __iterate_over_fontfiles__(found_fonts)
 
 
     __add_fonts_from_relative_paths__( custom_searchpaths[1] )
