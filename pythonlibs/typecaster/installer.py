@@ -7,8 +7,8 @@ import os, subprocess, sys
 from pathlib import Path
 from typecaster import config
 
-VERBOSE = False
 
+# No point in working with the installer if $TYPECASTER doesn't exist.
 if not os.getenv('TYPECASTER'):
     raise Exception("Could not find the TYPECASTER environment variable!")
 
@@ -20,10 +20,19 @@ PYTHON_INSTALLFOLDERNAME = f"python{str(sys.version_info.major)}.{str(sys.versio
 
 TYPECASTER_PYTHON_INSTALL_PATH = (TYPECASTER_ROOT_PATH / PYTHON_INSTALLFOLDERNAME).resolve()
 
+HMAJOR = int(os.getenv("HOUDINI_MAJOR_RELEASE"))
 
-def install():
+HMINOR = int(os.getenv("HOUDINI_MINOR_RELEASE"))
+
+
+def install(verbose=False):
     """Install Typecaster's dependencies that are not included with the main distribution.
     """
+    
+    if HMAJOR < 19 or ( HMAJOR == 19 and HMINOR < 5 ):
+        print( f"pip Not installed by default in this version of Houdini ({HMAJOR}.{HMINOR})! Checking for an existing installation.")
+        check_install_pip()
+    
     # If it doesn't already exist, create the folder which all of the packages will be installed into
     TYPECASTER_PYTHON_INSTALL_PATH.mkdir(exist_ok=True)
     
@@ -36,10 +45,10 @@ def install():
     stdout, stderr = process.communicate()
 
     if process.returncode == 0:
-        print("Install process executed successfully")
-        if VERBOSE: print(stdout.decode())
+        print("Dependency install process executed successfully")
+        if verbose: print(stdout.decode())
     else:
-        print("Install process failed with error:")
+        print("Dependency install process failed with error:")
         print(stderr.decode())
 
     # Update houdini path in-place
@@ -49,6 +58,7 @@ def install():
 
 def update():
     raise NotImplementedError("Yeah I should probably make an updater too...")
+
 
 def check_installed(auto_install=True):
     """Check if Typecaster is fully installed, installing it's dependencies if needed
@@ -77,3 +87,55 @@ def check_installed(auto_install=True):
             install()
             validinstall = True
     return validinstall
+
+
+def check_install_pip():
+    """Check if pip in installed to the current python environment, and attempt to install it if not.
+
+    Raises:
+        Exception: Raised if pip couldn't be run AND it couldn't be installed.
+    """    
+    cmd_piptest = f"""hython -m pip"""
+    print(f"Attempting to run pip...")
+    process = subprocess.Popen(cmd_piptest, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = process.communicate()
+
+    haspip = False
+    if process.returncode == 0:
+        print("pip appears to be installed!")
+        haspip = True
+    else:
+        print("pip could not be run. Attempting install...")
+
+        pipgetpath = (Path(os.getenv("HOUDINI_TEMP_DIR"))/"get-pip.py").resolve()
+        pipgetpath.parent.mkdir(exist_ok=True)
+        command = f"""curl https://bootstrap.pypa.io/get-pip.py -o {str(pipgetpath)}"""
+        print( f"Downloading get-pip.py to {pipgetpath}")
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+
+        if process.returncode == 0:
+            print("get-pip.py successfully downloaded.")
+
+            # While I'd prefer to install pip to houdini specifically, putting stuff here involves admin privileges
+            # pippath = (Path(os.getenv("PYTHONHOME"))/"Scripts").resolve()
+            # pippath.mkdir(exist_ok=True)
+            # command = f"""hython {pipgetpath} --prefix="{pippath}" """
+                
+            command = f"""hython {pipgetpath}"""
+            print(f"Running get-pip.py...")
+            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            
+            if process.returncode == 0:
+                print("pip install process success!")
+                haspip = True
+            else:
+                print("pip install process failed with error:")
+                print(stderr.decode())
+        else:
+            print("get-pip.py download process failed with error:")
+            print(stderr.decode())
+
+    if not haspip:
+        raise Exception("pip could not be found or installed. Typecaster install process terminated.")
