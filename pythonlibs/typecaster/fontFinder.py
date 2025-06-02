@@ -11,6 +11,7 @@ from pathlib import Path, WindowsPath, PosixPath
 from fontTools import ttLib
 from platform import system as get_platform_system
 from typecaster.config import get_config, add_config_dependencies
+from sys import version_info
 try:
     from find_system_fonts_filename import get_system_fonts_filename
 except ImportError:
@@ -25,6 +26,10 @@ logging.disable(logging.ERROR)
 
 
 PLATFORM = get_platform_system().upper()
+
+# Typecaster's core doesn't require the presence of this font information, so in older python versions where it can't be made
+# available it is posssible to completely bypass fontFinder's search process and work only with paths
+EDGECASE_NOSEARCH = (version_info.major == 3 and version_info.minor <= 8) or version_info.major < 3
 
 _families_ = {}
 _name_info_ = {}
@@ -440,6 +445,10 @@ def update_font_info():
     """
     # print("Updating Typecaster font info")
     __clear_font_caches__()
+    
+    if EDGECASE_NOSEARCH:
+        return
+    
     config = get_config()
     
     custom_searchpaths = __get_searchpaths__(config)
