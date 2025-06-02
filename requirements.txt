@@ -1,6 +1,7 @@
 Brotli==1.1.0
 FindSystemFontsFilename>=0.3.2; python_version >= '3.8' # This module only supports 3.8 or higher so only require it then, since it's arguably non-essential.
-fonttools[woff,ufo,unicode,pathops]==4.57.0
+fonttools[woff,ufo,unicode,pathops]==4.57.0; python_version >= '3.8'
+fonttools[woff,ufo,unicode,pathops]; python_version < '3.8' # I'm a bit more forgiving with version restrictions on older python versions since I don't fully support it.
 
 # newer python-bidi is completely incompatible with how we use it
 python-bidi==0.4.2  # pyup: ignore
