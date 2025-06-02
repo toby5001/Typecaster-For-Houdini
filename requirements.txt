@@ -1,12 +1,13 @@
 Brotli==1.1.0
-FindSystemFontsFilename==0.3.2
+FindSystemFontsFilename>=0.3.2; python_version >= '3.8' # This module only supports 3.8 or higher so only require it then, since it's arguably non-essential.
 fonttools[woff,ufo,unicode,pathops]==4.57.0
 
 # newer python-bidi is completely incompatible with how we use it
 python-bidi==0.4.2  # pyup: ignore
 
-ufo2ft>=3.2.8 #Pin for fg issue (according to coldtype)
-ufoLib2==0.17.1
+ufo2ft>=3.2.8; python_version >= '3.8' #Pin for fg issue (according to coldtype)
+ufo2ft; python_version < '3.8' # Since Typecaster really shouldn't be used in < 3.8, I don't really care much about the fg issue here.
+ufoLib2 #This is currently unpinned, but it doesn't matter much since I don't fully support .ufo files in Typecaster yet.
 
 uharfbuzz<0.47.0  # some kind of cached variations/memory bug introduced in 0.47.0 (according to coldtype)
 unicodedata2==16.0.0
