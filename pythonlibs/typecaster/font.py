@@ -9,7 +9,6 @@ typecaster.FontFinderprovides, this is the best way to do so.
 import sys
 from importlib import import_module
 from typecaster.fontFinder import path_to_name_mappings
-from functools import cached_property
 from fontgoggles import font as fgfont
 from fontTools.ttLib import TTLibError
 from pathlib import Path
@@ -64,7 +63,12 @@ class Font():
         self.load()
 
         self._variations = self.font.ttFont.get("fvar")
+        self._variations_ctf = None
         self._instances = None
+        self._instances_scaled = None
+        
+        self.best_line_spacing = self.get_best_line_spacing()
+        self.bezier_order = self.get_bezier_order()
     
     def load(self):
         if self._loaded:
@@ -76,9 +80,8 @@ class Font():
             except TTLibError:
                 raise FontNotFoundException
             return self
-
-    @cached_property
-    def best_line_spacing(self)->int:
+        
+    def get_best_line_spacing(self)->int:
         """
         Get the best line spacing, according to the available metrics in the specified font.
         This follows a similar order of spacing lookups to Microsoft's Word (I think).
@@ -117,8 +120,7 @@ class Font():
         else:
             return self.font.unitsPerEm
 
-    @cached_property
-    def bezier_order(self):
+    def get_bezier_order(self):
         # Set bezier order either from the sfntVersion or more often the font file's suffix
         # this will likely fail on a good amount of cases, but in 99% of the fonts I've tested, going by suffix works.
         sfntVersion = self.font.ttFont.reader.sfntVersion
@@ -139,14 +141,18 @@ class Font():
         return bezier_order
 
     def variations(self):
-        axes = {}
-        if self._variations:
-            fvar = self._variations
-            for axis in fvar.axes:
-                axes[axis.axisTag] = (axis.__dict__)
-        return axes
+        if self._variations_ctf is None:
+            axes = {}
+            if self._variations:
+                fvar = self._variations
+                for axis in fvar.axes:
+                    axes[axis.axisTag] = (axis.__dict__)
+            self._variations_ctf = axes
+        return self._variations_ctf
     
     def instances(self, scaled=True):
+        if self._instances_scaled and scaled:
+            return self._instances_scaled
         if self._variations is None:
             return None
         
@@ -165,7 +171,8 @@ class Font():
                     axis = axes[k]
                     out[k] = (v - axis["minValue"]) / (axis["maxValue"] - axis["minValue"])
                 return out
-            return {k:scale(v) for k, v in self._instances.items()}
+            self._instances_scaled = {k:scale(v) for k, v in self._instances.items()}
+            return self._instances_scaled
 
         return self._instances
 
