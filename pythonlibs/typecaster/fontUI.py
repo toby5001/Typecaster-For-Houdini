@@ -365,15 +365,15 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
 
         targetfolder = ptg.find(featfolder_name)
         if not targetfolder: featfolder_name = featfolder_name+'2'; targetfolder = ptg.find(featfolder_name)
-        existing_parms |= { parm.name() : parm for parm in targetfolder.parmTemplates()}
+        existing_parms.update({ parm.name() : parm for parm in targetfolder.parmTemplates()})
 
         targetfolder = ptg.find(ssfolder_name)
         if not targetfolder: ssfolder_name = ssfolder_name+'2'; targetfolder = ptg.find(ssfolder_name)
-        existing_parms |= { parm.name() : parm for parm in targetfolder.parmTemplates()}
+        existing_parms.update({ parm.name() : parm for parm in targetfolder.parmTemplates()})
 
         targetfolder = ptg.find(cvfolder_name)
         if not targetfolder: cvfolder_name = cvfolder_name+'2'; targetfolder = ptg.find(cvfolder_name)
-        existing_parms |= { parm.name() : parm for parm in targetfolder.parmTemplates()}
+        existing_parms.update({ parm.name() : parm for parm in targetfolder.parmTemplates()})
 
         # Construct all of the font's feature toggles
         combined_features = set(fontgoggle.featuresGPOS) | set(fontgoggle.featuresGSUB)
