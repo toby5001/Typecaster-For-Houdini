@@ -13,8 +13,14 @@ from typecaster import font as tcf
 from fontTools.ttLib import TTCollection
 
 
-# This is kinda overkil to set as a standalone variable, but this is what ensures that varaxes are always houdini-readable
-ensure_compatible_name = hou.text.variableName
+# # This is kinda overkil to set as a standalone variable, but this is what ensures that varaxes are always houdini-readable
+# ensure_compatible_name = hou.text.variableName
+def ensure_compatible_name(name:str):
+    """Process a string and ensure that it is compatible with Houdini (NOT reverseable)."""
+    name = hou.text.alphaNumeric(name)
+    if name[0].isdigit():
+        name = '_'+name
+    return name
 
 
 """
