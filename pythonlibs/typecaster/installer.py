@@ -25,13 +25,22 @@ HMAJOR = int(os.getenv("HOUDINI_MAJOR_RELEASE"))
 HMINOR = int(os.getenv("HOUDINI_MINOR_RELEASE"))
 
 
-def install(verbose=False):
+def install_dependencies(verbose=False):
     """Install Typecaster's dependencies that are not included with the main distribution.
-    """
+
+    Args:
+        verbose (bool, optional): If enabled, the full stdout of running pip will be printed. Defaults to False.
+
+    Returns:
+        bool: Returns True if Typecaster could be installed. Otherwise False.
+    """    
     
     if HMAJOR < 19 or ( HMAJOR == 19 and HMINOR < 5 ):
         print( f"pip Not installed by default in this version of Houdini ({HMAJOR}.{HMINOR})! Checking for an existing installation.")
-        check_install_pip()
+        pipstatus = check_install_pip()
+        if not pipstatus:
+            print("pip could not be found or installed. Typecaster install process terminated.")
+            return False
     
     # If it doesn't already exist, create the folder which all of the packages will be installed into
     TYPECASTER_PYTHON_INSTALL_PATH.mkdir(exist_ok=True)
@@ -55,6 +64,7 @@ def install(verbose=False):
     if pathstring not in sys.path:
         print(f"Adding {pathstring} to path")
         sys.path.insert(0, pathstring)
+    return True
 
 def update():
     raise NotImplementedError("Yeah I should probably make an updater too...")
@@ -84,8 +94,7 @@ def check_installed(auto_install=True):
     
     if not validinstall:
         if auto_install and config.get_config().get("auto_install_python_dependencies", 0) == 1:
-            install()
-            validinstall = True
+            validinstall = install_dependencies()
     return validinstall
 
 
@@ -136,6 +145,4 @@ def check_install_pip():
         else:
             print("get-pip.py download process failed with error:")
             print(stderr.decode())
-
-    if not haspip:
-        raise Exception("pip could not be found or installed. Typecaster install process terminated.")
+    return haspip
