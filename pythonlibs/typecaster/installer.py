@@ -16,7 +16,8 @@ TYPECASTER_ROOT_PATH = Path( os.getenv('TYPECASTER') ).resolve()
 
 REQUIREMENTS_PATH = ( TYPECASTER_ROOT_PATH / "requirements.txt" ).resolve()
 
-PYTHON_INSTALLFOLDERNAME = f"python{str(sys.version_info.major)}.{str(sys.version_info.minor)}libs"
+PYTHTON_VERSION = f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}"
+PYTHON_INSTALLFOLDERNAME = f"python{PYTHTON_VERSION}libs"
 
 TYPECASTER_PYTHON_INSTALL_PATH = (TYPECASTER_ROOT_PATH / PYTHON_INSTALLFOLDERNAME).resolve()
 
@@ -118,7 +119,11 @@ def check_install_pip():
 
         pipgetpath = (Path(os.getenv("HOUDINI_TEMP_DIR"))/"get-pip.py").resolve()
         pipgetpath.parent.mkdir(exist_ok=True)
-        command = f"""curl https://bootstrap.pypa.io/get-pip.py -o {str(pipgetpath)}"""
+        if float(PYTHTON_VERSION) < 3.9:
+            url = f"https://bootstrap.pypa.io/pip/{PYTHTON_VERSION}/get-pip.py"
+        else:
+            url = f"https://bootstrap.pypa.io/pip/get-pip.py"
+        command = f"""curl {url} -o {str(pipgetpath)}"""
         print( f"Downloading get-pip.py to {pipgetpath}")
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
