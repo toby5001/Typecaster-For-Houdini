@@ -16,7 +16,7 @@
     </toolMenuContext>
     <toolSubmenu>Typecaster/scripts</toolSubmenu>
     <script scriptType="python"><![CDATA[import hou
-
+kwargs:dict 
     
 def parm_from_parm(dst_parm:hou.Parm|hou.ParmTuple, src_parm:hou.Parm|hou.ParmTuple, src_index=None, dst_index=None):
     dst_is_tuple = isinstance(dst_parm,hou.ParmTuple)
@@ -45,7 +45,6 @@ for node in hou.selectedNodes():
     node : hou.OpNode
     if node.type().name() == "font":
         parent_node: hou.OpNode = node.parent()
-        nodename = f"tc_{node.name()}"
         parms = {}
         parms['pack_method'] = 1
         parms['leading_follow_spacing'] = 1
@@ -55,12 +54,11 @@ for node in hou.selectedNodes():
         if hole != 1:
             parms['hole_method'] = 3
 
-        tcnode: hou.OpNode = parent_node.createNode(node_type_name='typecaster_font', node_name=nodename )
-        tcnode.setName( nodename, unique_name=True)
+        tcnode: hou.OpNode = parent_node.createNode(node_type_name='typecaster_font')
         pos = node.position()
-        pos[0] += 1
-        pos[1] -= 0.5
-        tcnode.setPosition( pos )
+        pos_shifted = list(pos)
+        pos_shifted[0] += 1.0
+        pos_shifted[1] -= 0.5
         tcnode.setParms(parms)
         
         parm_from_parm( dst_parm=tcnode.parm('font'), src_parm=node.parm('file'))
@@ -80,7 +78,33 @@ for node in hou.selectedNodes():
         
         for tgt in triggercallback:
             parm: hou.Parm = tcnode.parm(tgt)
-            parm.pressButton()]]></script>
+            parm.pressButton()
+            
+        if kwargs.get('shiftclick',False):
+            for connection in node.outputConnections():
+                connection:hou.NodeConnection
+                outnode:hou.OpNode = connection.outputNode()
+                # This basic system currently doesn't handle dots or any other
+                # unusual network stuff and will only work to connect one
+                # hou.OpNode to another hou.OpNode.
+                if outnode:
+                    outnode.setInput(connection.outputIndex(), tcnode, 0)
+                else:
+                    print(f"Failed to create a connection for {tcnode}")
+            tcnode.setPosition(pos)
+            node.setPosition(pos_shifted)
+            
+            nodename = f"{node.name()}"
+            # nodename_old = f"{nodename}_old"
+            # node.setName( nodename_old, unique_name=True)
+            node.destroy()
+            tcnode.setName( nodename, unique_name=True)
+            
+        else:
+            tcnode.setPosition(pos_shifted)
+            
+            nodename = f"tc_{node.name()}"
+            tcnode.setName( nodename, unique_name=True)]]></script>
   </tool>
 
   <tool name="installTypecaster" label="Install Typecaster" icon="PLASMA_App">
