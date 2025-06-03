@@ -7,7 +7,7 @@ Submodule for functionality related to updating and parsing the interface of Typ
 from __future__ import annotations
 import hou, re
 from typing import NamedTuple
-from pathlib import Path
+from pathlib import Path, WindowsPath, PosixPath
 from typecaster import fontFinder
 from typecaster import font as tcf
 from fontTools.ttLib import TTCollection
@@ -119,13 +119,12 @@ def fit( valin: float, omin: float=0, omax: float=1, nmin: float=0, nmax: float=
 class FontParmInfo(NamedTuple):
     path:Path
     number:int
+    validfont:bool
     family:str
     name:str
     info:fontFinder.NameInfo
     is_filepath:bool
     is_collection:bool
-    validfont:bool
-
 
 def interpret_font_parms( targetnode:hou.OpNode, read_collection_fontnumber=True, parm_naming_version="1.0"):
     """Interpret the font parameters for a given Typecaster font node, getting useful information about the font it is currently set to.
@@ -174,7 +173,7 @@ def interpret_font_parms( targetnode:hou.OpNode, read_collection_fontnumber=True
         fontname = fontparmval
     else:
         validfont=False
-    finfo = FontParmInfo(fontpath, fontnumber, fontfamily, fontname, info, fontparm_is_filepath, font_is_collection, validfont)
+    finfo = FontParmInfo(fontpath, fontnumber, validfont, fontfamily, fontname, info, fontparm_is_filepath, font_is_collection)
     return finfo
 
 
@@ -186,7 +185,7 @@ def interpret_font_parms_min( targetnode:hou.OpNode, parm_naming_version="1.0" )
         parm_naming_version (str, optional): Identifier for the parameter naming scheme used for the current node. Defaults to "1.0".
 
     Returns:
-        tuple[Path,int,bool]: A tuple with the font parameter information.
+        tuple[Path,int,bool]: A tuple with the font parameter information. This is the same as the first three values in a FontParmInfo object.
     """
     parmnames = PARMNAMING[parm_naming_version]
     fontparmval = targetnode.evalParm(parmnames['font'])
@@ -205,6 +204,38 @@ def interpret_font_parms_min( targetnode:hou.OpNode, parm_naming_version="1.0" )
         else:
             validfont = False
     return fontpath, fontnumber, validfont
+
+
+def get_varaxes_vexops(font_info_string:str):
+    """Construct the vexcode needed to read in the varaxes parameters and attributes for a given font.
+    This function is only really intended for internal use and has no purpose for the end-user.
+
+    Args:
+        font_info_string (str): Font info string from the font_info parameter being used by Typecaster's core. This should be the string representation of interpret_font_parms_min.
+
+    Returns:
+        tuple[str,str]: A tuple of strings to be used by parts of Typecaster for interpreting varaxes.
+    """
+    # While you could argue that this isn't the right module since it doesn't modify the UI, I think it makes the most sense to put it here.
+    # While the code itself doesn't depend on interpret_font_parms_min, it's the expected return value being passed to this function.
+    font_info_min = eval(font_info_string)
+    fnt = tcf.Font.Cacheable(font_info_min[0],font_info_min[1])
+    variation_axes = fnt.font.axes
+    vexremap  = ''
+    vexreader = ''
+    if variation_axes:
+        for parmname in variation_axes:
+            # Get the required values for the current parameter
+            minval = variation_axes[parmname].get('minValue')
+            maxval = variation_axes[parmname].get('maxValue')
+            default = variation_axes[parmname].get('defaultValue')
+            default = fit(default, minval, maxval)
+            parmname = ensure_compatible_name(parmname)
+
+            # Add a corresponding line for reading in the current axes in vex for per-glyph variation
+            vexremap += f"""attribfound += remap_if_found( '{parmname}', {minval}, {maxval}, @ptnum );\n"""
+            vexreader += f"""attribfound += read_if_found( '{parmname}', tgt, @ptnum);\n"""
+    return vexremap,vexreader
 
 
 def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
@@ -294,8 +325,8 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
         existing_parms = {}
 
         # Create all parameters related to variable font axes
-        vexremap = ""
-        vexreader = ""
+        # vexremap = ""
+        # vexreader = ""
         realparms = []
         variation_axes = fontgoggle.axes
         if variation_axes:
@@ -352,11 +383,11 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
                 varfolder = ptg.find(varfoldername)
                 ptg.appendToFolder( varfolder, template_real)
 
-                # Add a corresponding line for reading in the current axes in vex for per-glyph variation
-                vex_remapline = f"""attribfound += remap_if_found( '{parmname}', {minval}, {maxval}, @ptnum );"""
-                vexremap += vex_remapline+"\n"
-                vex_readerline = f"""attribfound += read_if_found( '{parmname}', tgt, @ptnum);"""
-                vexreader += vex_readerline+"\n"
+                # # Add a corresponding line for reading in the current axes in vex for per-glyph variation
+                # vex_remapline = f"""attribfound += remap_if_found( '{parmname}', {minval}, {maxval}, @ptnum );"""
+                # vexremap += vex_remapline+"\n"
+                # vex_readerline = f"""attribfound += read_if_found( '{parmname}', tgt, @ptnum);"""
+                # vexreader += vex_readerline+"\n"
         else:
             node.parm('has_varying_parms').set(0)
 
@@ -442,9 +473,9 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
         # Set the new modified ptg
         node.setParmTemplateGroup(ptg)
 
-        # Set the string referenced for vex attribute handling
-        node.parm('vex_varAxesMapping').set(vexremap)
-        node.parm('vex_varAxesReading').set(vexreader)
+        # # Set the string referenced for vex attribute handling
+        # node.parm('vex_varAxesMapping').set(vexremap)
+        # node.parm('vex_varAxesReading').set(vexreader)
 
         # # Lock the real varaxes parameters, since they really shouldn't be directly modified unless the user is really determined
         # for preal in realparms: node.parm(preal).lock(True)
