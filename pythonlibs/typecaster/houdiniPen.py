@@ -13,6 +13,7 @@ except ImportError:
     PathVerb = None
     pass
 
+
 __CTRLPTS_ATTRIBNAME__ = "ctrlpts"
 
 class HoudiniBasePen():
@@ -88,6 +89,7 @@ class HoudiniBasePen():
         else:
             raise NotImplementedError("Pathops is not installed, or could not be initialized!")
 
+
 class HoudiniQuadraticPen(HoudiniBasePen):
     """
     Pen for constructing a Quadratic bezier curve in Houdini.
@@ -106,6 +108,7 @@ class HoudiniQuadraticPen(HoudiniBasePen):
         self.ptsset.extend( [ pt1[0], pt1[1], pt2[0], pt2[1] ] )
     # Unless it's really required I don't think it's a good idea to support curveTo here, since lowering
     # the order of a curve is lossy. Maybe worth looking to as an advanced toggle? (If it's ever an issue)
+
 
 class HoudiniCubicPen(HoudiniBasePen):
     """
@@ -132,6 +135,7 @@ class HoudiniCubicPen(HoudiniBasePen):
         self.ptsset.extend( [ pt1[0], pt1[1], pt2[0], pt2[1], pt2[0], pt2[1] ] )
         # Visually, this seems to be good enough, but I don't think it's mathematically the same as correctly 
         # converting from quadratic to cubic.
+
 
 def getHoudiniPen( bezier_order:int, *args, **kwargs):
     """
