@@ -2,7 +2,7 @@
 
 Submodule for working with individual fonts in Typecaster.
 If you want to access individual font information beyond what
-typecaster.FontFinderprovides, this is the best way to do so.
+typecaster.FontFinder provides, this is the best way to do so.
 
 """
 
@@ -190,7 +190,7 @@ class Font():
             FontNotFoundException: Gets rasied if the path does not exist.
 
         Returns:
-            _type_: Returns a Font object.
+            Font: Returns a Font object.
         """
         actual_path = None
         if number > 0:
