@@ -25,6 +25,8 @@ HMAJOR = int(os.getenv("HOUDINI_MAJOR_RELEASE"))
 
 HMINOR = int(os.getenv("HOUDINI_MINOR_RELEASE"))
 
+# If this is true, Houdini is below the version number where pip is included in it's python instalation. Additional checks will be run.
+PIP_UNCERTAIN = HMAJOR < 19 or ( HMAJOR == 19 and HMINOR < 5 )
 
 def install_dependencies(verbose=False):
     """Install Typecaster's dependencies that are not included with the main distribution.
@@ -36,8 +38,8 @@ def install_dependencies(verbose=False):
         bool: Returns True if Typecaster could be installed. Otherwise False.
     """    
     
-    if HMAJOR < 19 or ( HMAJOR == 19 and HMINOR < 5 ):
-        print( f"pip Not installed by default in this version of Houdini ({HMAJOR}.{HMINOR})! Checking for an existing installation.")
+    if PIP_UNCERTAIN:
+        print( f"pip not installed by default in this version of Houdini ({HMAJOR}.{HMINOR})! Checking for an existing installation.")
         pipstatus = check_install_pip()
         if not pipstatus:
             print("pip could not be found or installed. Typecaster install process terminated.")
@@ -50,7 +52,6 @@ def install_dependencies(verbose=False):
 
     print("Installing Typecaster dependency packages...")
     command = f"""hython -m pip install --target "{pathstring}" -r {REQUIREMENTS_PATH}"""
-    # subprocess.run(command, shell=True)
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
 
@@ -67,11 +68,21 @@ def install_dependencies(verbose=False):
         sys.path.insert(0, pathstring)
     return True
 
+
 def update():
-    raise NotImplementedError("Yeah I should probably make an updater too...")
+    raise NotImplementedError("Updater is currently incomplete!")
+    print("Updating Typecaster from github...")
+    # command = f"""git pull || SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU && git pull"""
+    command = f"""git pull"""
+    # command = f"""hython -m pip install --target "{TYPECASTER_PYTHON_INSTALL_PATH}" -r {REQUIREMENTS_PATH}"""
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
+    stdout, stderr = process.communicate()
+    
+    print(stdout.decode())
+    print(stderr.decode())
 
 
-def check_installed(auto_install=True):
+def check_install(auto_install=True, force_if_not_valid=False):
     """Check if Typecaster is fully installed, installing it's dependencies if needed
     (when enabled in the config file and auto_install is True).
 
@@ -94,12 +105,20 @@ def check_installed(auto_install=True):
         pass
     
     if not validinstall:
-        if auto_install and config.get_config().get("auto_install_python_dependencies", 0) == 1:
+        if force_if_not_valid:
             validinstall = install_dependencies()
+        elif auto_install and config.get_config().get("auto_install_python_dependencies", 0) == 1:
+            print("Typecaster could not be initialized properly and auto-install is enabled in the config. Attempting install.")
+            validinstall = install_dependencies()
+        else:
+            print("""Typecaster could not be initialized properly and auto-install is disabled.
+Please either run typecaster.installer.install() or Run the installer from the shelf tool.""")
+    elif force_if_not_valid:
+        print("Typecaster already is installed!")
     return validinstall
 
 
-def check_install_pip():
+def check_install_pip(auto_install=True):
     """Check if pip in installed to the current python environment, and attempt to install it if not.
 
     Raises:
@@ -114,7 +133,7 @@ def check_install_pip():
     if process.returncode == 0:
         print("pip appears to be installed!")
         haspip = True
-    else:
+    elif auto_install:
         print("pip could not be run. Attempting install...")
 
         pipgetpath = (Path(os.getenv("HOUDINI_TEMP_DIR"))/"get-pip.py").resolve()
@@ -151,4 +170,6 @@ def check_install_pip():
         else:
             print("get-pip.py download process failed with error:")
             print(stderr.decode())
+    else:
+        print("pip could not be run, and auto_install has been disabled!")
     return haspip
