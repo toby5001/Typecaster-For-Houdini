@@ -110,6 +110,6 @@ for node in hou.selectedNodes():
   <tool name="installTypecaster" label="Install Typecaster" icon="PLASMA_App">
     <toolSubmenu>Typecaster/scripts</toolSubmenu>
     <script scriptType="python"><![CDATA[from typecaster import installer
-installer.install()]]></script>
+installer.check_install(force_if_not_valid=True)]]></script>
   </tool>
 </shelfDocument>
