@@ -446,31 +446,30 @@ def update_font_info():
     # print("Updating Typecaster font info")
     __clear_font_caches__()
     
-    if EDGECASE_NOSEARCH:
-        return
+    if not EDGECASE_NOSEARCH:
     
-    config = get_config()
-    
-    custom_searchpaths = __get_searchpaths__(config)
-    __add_fonts_from_relative_paths__( custom_searchpaths[0] )
+        config = get_config()
+        
+        custom_searchpaths = __get_searchpaths__(config)
+        __add_fonts_from_relative_paths__( custom_searchpaths[0] )
 
-    if config.get('only_use_config_searchpaths', 0) == 0:
+        if config.get('only_use_config_searchpaths', 0) == 0:
 
-        # get_system_fonts_filename actually locates some of the adobe fonts,
-        # but it doesn't seem to get all, so running this is still useful
-        __add_adobe_fonts__()
-        # __add_fonts_from_relative_path__("$HFS/houdini/fonts", tags={'source':'$HFS'})
-        # __add_fonts_from_relative_path__("$TYPECASTER/fonts", tags={'source':'$TYPECASTER'})
-        # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
-        # __add_fonts_from_relative_path__("$JOB/fonts", tags={'source':'$JOB'})
+            # get_system_fonts_filename actually locates some of the adobe fonts,
+            # but it doesn't seem to get all, so running this is still useful
+            __add_adobe_fonts__()
+            # __add_fonts_from_relative_path__("$HFS/houdini/fonts", tags={'source':'$HFS'})
+            # __add_fonts_from_relative_path__("$TYPECASTER/fonts", tags={'source':'$TYPECASTER'})
+            # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
+            # __add_fonts_from_relative_path__("$JOB/fonts", tags={'source':'$JOB'})
 
-        if get_system_fonts_filename:
-            found_fonts = get_system_fonts_filename()
-            __iterate_over_fontfiles__(found_fonts)
+            if get_system_fonts_filename:
+                found_fonts = get_system_fonts_filename()
+                __iterate_over_fontfiles__(found_fonts)
 
 
-    __add_fonts_from_relative_paths__( custom_searchpaths[1] )
-    __add_fonts_from_relative_paths__( custom_searchpaths[2] )
+        __add_fonts_from_relative_paths__( custom_searchpaths[1] )
+        __add_fonts_from_relative_paths__( custom_searchpaths[2] )
 
     # If No fonts were found (highly unlikely), add a fake font so that the
     # cache checkers don't endlessley refresh
