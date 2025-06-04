@@ -48,7 +48,7 @@ for node in hou.selectedNodes():
         parms = {}
         parms['pack_method'] = 1
         parms['leading_follow_spacing'] = 1
-        triggercallback = ('font',)
+        triggercallback = ('file',)
 
         hole = node.evalParm('hole')
         if hole != 1:
@@ -61,7 +61,7 @@ for node in hou.selectedNodes():
         pos_shifted[1] -= 0.5
         tcnode.setParms(parms)
         
-        parm_from_parm( dst_parm=tcnode.parm('font'), src_parm=node.parm('file'))
+        parm_from_parm( dst_parm=tcnode.parm('file'), src_parm=node.parm('file'))
         parm_from_parm( dst_parm=tcnode.parm('text'), src_parm=node.parm('text'))
         parm_from_parm( dst_parm=tcnode.parm('halign'), src_parm=node.parm('halign'))
         parm_from_parm( dst_parm=tcnode.parm('valign'), src_parm=node.parm('valign'))

@@ -101,10 +101,10 @@ del __SUBFAMILY_ORDER__
 # This isn't really needed right now, but it could be useful to support the changing of parameter names across multiple asset versions.
 PARMNAMING = {
     "1.0" : {
-        'font':'font',
+        'font':'file',
         'font_number':'font_collection_number',
         
-        'font_family_selector':'font_select_in_family',
+        'font_family_menu':'font_select_in_family',
         'font_instances':'font_instances'
     },
 }
