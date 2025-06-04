@@ -520,7 +520,7 @@ def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"
             node.hdaModule().update_font_parms(node=node, triggersrc='collection')
 
 
-def set_from_font_family(node:hou.OpNode=None):
+def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
     """Update the current font node based off of it's font family parameter value
 
     Args:
@@ -528,11 +528,12 @@ def set_from_font_family(node:hou.OpNode=None):
     """
     if not node:
         node:hou.OpNode = hou.pwd()
+    parmnames = PARMNAMING[parm_naming_version]
     familyparm:hou.Parm = node.parm('font_select_in_family')
     # menuval = familyparm.eval()
     menuval = familyparm.unexpandedString()
     if menuval:
-        node.parm('font').set(menuval)
+        node.parm(parmnames['font']).set(menuval)
         familyparm.set('')
         node.hdaModule().update_font_parms(triggersrc='family')
         # familyparm.pressButton()
@@ -560,16 +561,20 @@ def set_from_font_instance(node:hou.OpNode=None):
         instanceparm.set('')
 
 
-def font_selection_tree( parm:hou.Parm ):
+def font_selection_tree( node:hou.Node=None, parm_naming_version="1.0" ):
     """Create a basic ui tree for font selection. Not a replacement for a proper interface but a nice in-between.
     Depending on the state of the target node, the items will either be font paths or font names.
     
     Args:
         parm (hou.Parm): The font parameter to set based off of the selection tree.
     """
+    if not node:
+        node:hou.OpNode = hou.pwd()
+    parmnames = PARMNAMING[parm_naming_version]
+    parm:hou.Parm = node.parm(parmnames['font'])
     families = fontFinder.families()
     name_info = fontFinder.name_info()
-    parminfo = interpret_font_parms( parm.node(), read_collection_fontnumber=True, parm_naming_version="1.0")
+    parminfo = interpret_font_parms( node, read_collection_fontnumber=True, parm_naming_version="1.0")
     items_are_paths = False
     if parminfo.is_filepath and parminfo.info:
         items_are_paths = True
