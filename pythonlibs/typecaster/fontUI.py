@@ -566,7 +566,7 @@ def font_selection_tree( node:hou.Node=None, parm_naming_version="1.0" ):
     Depending on the state of the target node, the items will either be font paths or font names.
     
     Args:
-        parm (hou.Parm): The font parameter to set based off of the selection tree.
+        node (hou.Node): The node to operate on.
     """
     if not node:
         node:hou.OpNode = hou.pwd()
@@ -588,10 +588,10 @@ def font_selection_tree( node:hou.Node=None, parm_naming_version="1.0" ):
             tags = info.tags
             choice=''
             if 'variable' in tags and tags['variable'] is True:
-                choice = " || Variable"
+                choice = " ||Variable"
             source =  tags.get('source',None)
             if source:
-                choice += f" || Source:{source}"
+                choice += f" ||Source:{source}"
 
             choice = fam+"/"+fnt+choice
             choices.append(choice)
