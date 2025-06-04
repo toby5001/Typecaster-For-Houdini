@@ -105,14 +105,14 @@ def check_install(auto_install=True, force_if_not_valid=False):
         pass
     
     if not validinstall:
+        print("Typecaster could not be initialized properly. Are the dependencies installed?")
         if force_if_not_valid:
             validinstall = install_dependencies()
         elif auto_install and config.get_config().get("auto_install_python_dependencies", 0) == 1:
-            print("Typecaster could not be initialized properly and auto-install is enabled in the config. Attempting install.")
+            print("Auto-install is enabled in the config. Attempting install.")
             validinstall = install_dependencies()
         else:
-            print("""Typecaster could not be initialized properly and auto-install is disabled.
-Please either run typecaster.installer.install() or Run the installer from the shelf tool.""")
+            print("""Auto-install is disabled. Please either run the installer from the shelf tool, or run typecaster.installer.install() from a python shell.""")
     elif force_if_not_valid:
         print("Typecaster already is installed!")
     return validinstall
