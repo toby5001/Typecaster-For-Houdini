@@ -10,7 +10,7 @@
 					"method": "prepend"
 				}
 			],
-			"HOUDINI_PATH":[
+			"HOUDINI_PATH": [
 				"$TYPECASTER",
 				{
 					"method": "prepend"
