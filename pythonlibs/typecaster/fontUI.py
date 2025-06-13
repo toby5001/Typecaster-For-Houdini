@@ -520,8 +520,14 @@ def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"
 
         numberparm = node.parm(parmnames['font_number'])
         if fontnumber and numberparm:
-            numberparm.set(fontnumber)
-            node.hdaModule().update_font_parms(node=node, triggersrc='collection')
+            try:
+                # Since the list of fonts in the collection is now sorted,
+                # we need to figure out where the correct number actually is.
+                fontnumber = list(numberparm.menuItems()).index(str(fontnumber))
+                numberparm.set(fontnumber)
+                node.hdaModule().update_font_parms(node=node, triggersrc='collection')
+            except ValueError:
+                pass
 
 
 def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
