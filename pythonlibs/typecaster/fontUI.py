@@ -219,8 +219,12 @@ def get_varaxes_vexops(font_info_string:str):
     # While you could argue that this isn't the right module since it doesn't modify the UI, I think it makes the most sense to put it here.
     # While the code itself doesn't depend on interpret_font_parms_min, it's the expected return value being passed to this function.
     font_info_min = eval(font_info_string)
-    fnt = tcf.Font.Cacheable(font_info_min[0],font_info_min[1])
-    variation_axes = fnt.font.axes
+    try:
+        fnt = tcf.Font.Cacheable(font_info_min[0],font_info_min[1])
+        variation_axes = fnt.font.axes
+    except tcf.FontNotFoundException:
+        # No need to indicate an error here, since typecaster_core will be erroring in the case at the same time
+        variation_axes = None
     vexremap  = ''
     vexreader = ''
     if variation_axes:

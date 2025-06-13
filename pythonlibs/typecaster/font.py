@@ -13,6 +13,11 @@ from fontgoggles import font as fgfont
 from fontTools.ttLib import TTLibError
 from pathlib import Path
 
+
+class FontNotFoundException(Exception):
+    pass
+
+
 def getOpener(fontPath: Path):
     """Get the correct opener for fontgoggles. Unlike the original function,
     the font is assumed to be valid by the time this function is called.
@@ -27,16 +32,14 @@ def getOpener(fontPath: Path):
     if openerKey is None:
         if path_to_name_mappings(fontPath):
             openerKey = "otf"
-    assert openerKey is not None
+    if openerKey is None:
+        raise FontNotFoundException
     openerSpec = fgfont.fontOpeners[openerKey][1]
     moduleName, className = openerSpec.rsplit(".", 1)
     module = import_module(moduleName)
     openerClass = getattr(module, className)
     return openerClass
 
-
-class FontNotFoundException(Exception):
-    pass
 
 FontCache = {}
 
