@@ -274,22 +274,25 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
     fontFamily = names[1]
     fontSubFamily = names[2]
 
+    # Only add the current font if it's name is wasn't already cached.
     if fontName not in _name_info_:
         _name_info_[fontName] = NameInfo( path, number, fontFamily, subfamily=fontSubFamily, tags=tags, relative_path=relative_path )
     
-    posixpath = path.as_posix()
-    if posixpath not in _path_to_name_mappings_:
-        _path_to_name_mappings_[posixpath] = {number:fontName}
-    else:
-        if number not in _path_to_name_mappings_[posixpath]:
-            _path_to_name_mappings_[posixpath][number] = fontName
+        posixpath = path.as_posix()
+        if posixpath not in _path_to_name_mappings_:
+            _path_to_name_mappings_[posixpath] = {number:fontName}
+        else:
+            if number not in _path_to_name_mappings_[posixpath]:
+                _path_to_name_mappings_[posixpath][number] = fontName
 
-    # Maybe this should be a set since I don't want repeated items anyways?
-    if fontFamily not in _families_:
-         _families_[fontFamily] = [fontName,]
-    else:
-        if fontName not in _families_[fontFamily]:
-            _families_[fontFamily].append(fontName)
+        # Maybe this should be a set since I don't want repeated items anyways?
+        if fontFamily not in _families_:
+            _families_[fontFamily] = [fontName,]
+        else:
+            if fontName not in _families_[fontFamily]:
+                _families_[fontFamily].append(fontName)
+    # else:
+    #     print(f"{'-'*64}\nBypassed {fontName}\nNew:      {path}\nExisting: {_name_info_[fontName].path}")
 
 def __iterate_over_fontfiles__(found_fonts:list[str]):
     """Iterate over a list of path strings and add them to the cache, handling any font collection files found as well.
