@@ -31,9 +31,9 @@ PLATFORM = get_platform_system().upper()
 # available it is posssible to completely bypass fontFinder's search process and work only with paths
 EDGECASE_NOSEARCH = (version_info.major == 3 and version_info.minor <= 8) or version_info.major < 3
 
-_families_ = {}
-_name_info_ = {}
-_path_to_name_mappings_ = {}
+_families_: dict[str,tuple[str]] = {}
+_name_info_: dict[str,NameInfo] = {}
+_path_to_name_mappings_: dict[str,tuple[str]] = {}
 add_config_dependencies(_families_, _name_info_, _path_to_name_mappings_)
 
 COLLECTIONSUFFIXES = {".ttc", ".otc"}
@@ -274,8 +274,26 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
     fontFamily = names[1]
     fontSubFamily = names[2]
 
+    do_cache = False
     # Only add the current font if it's name is wasn't already cached.
     if fontName not in _name_info_:
+        do_cache = True
+    else:
+        # Check if the current font is a variable font that can overwrite an existing static font.
+        # I'm still not 100% sure if this should even happen, or if sticking with adding the
+        # files in the strict order they are found is better.
+        info_existing = _name_info_[fontName]
+        if not info_existing.tags.get('variable',False) and tags.get('variable',False):
+            # print(f"""<WARNING> Static font named "{fontName}" is already located, but a variable font with the same name has been found. Should I prioritize the variable one even though it breaks the font search prioritization order?""")
+            if tags.get('search_op',None) is not None and tags.get('search_op',None) == info_existing.tags.get('search_op',None):
+                # If a variable font is found that has the same name as an existing static font
+                # AND it is within the same search operation, allow the variable font to overwrite.
+                old_posixpath = info_existing.path.as_posix()
+                # Remove the old mapping to avoid any issues with parameter inconsistency.
+                # All the other dicts will be overwritten when the cache operation runs.
+                del _path_to_name_mappings_[old_posixpath][info_existing.number]
+                do_cache = True
+    if do_cache:
         _name_info_[fontName] = NameInfo( path, number, fontFamily, subfamily=fontSubFamily, tags=tags, relative_path=relative_path )
     
         posixpath = path.as_posix()
@@ -291,10 +309,9 @@ def __cache_individual_font__(font:ttLib.TTFont, path:Path, tags:dict={}, number
         else:
             if fontName not in _families_[fontFamily]:
                 _families_[fontFamily].append(fontName)
-    # else:
-    #     print(f"{'-'*64}\nBypassed {fontName}\nNew:      {path}\nExisting: {_name_info_[fontName].path}")
 
-def __iterate_over_fontfiles__(found_fonts:list[str]):
+
+def __iterate_over_fontfiles__(found_fonts:list[str], search_op=None):
     """Iterate over a list of path strings and add them to the cache, handling any font collection files found as well.
 
     Args:
@@ -303,14 +320,15 @@ def __iterate_over_fontfiles__(found_fonts:list[str]):
     # TODO: Should there be error handling here? Or can we assume the incoming paths are valid fonts. 
     for f in found_fonts:
         p  = Path(f)
+        tags = {'search_op':search_op}
         if p.suffix.lower() in COLLECTIONSUFFIXES:
             # print( f"{p.name} is a collection!" )
             collection = ttLib.TTCollection(p)
             for number, ttfont in enumerate(collection.fonts):
-                __cache_individual_font__( ttfont, p, tags={}, number=number)
+                __cache_individual_font__( ttfont, p, tags=tags, number=number)
         else:
             ttfont = ttLib.TTFont(p, fontNumber=0)
-            __cache_individual_font__( ttfont, p, tags={}, number=0)
+            __cache_individual_font__( ttfont, p, tags=tags, number=0)
 
 def _SearchDir( searchpath:Path, depth:int=0, max_depth:int=3):
     """
@@ -330,7 +348,7 @@ def _SearchDir( searchpath:Path, depth:int=0, max_depth:int=3):
                 results.append(p)
     return results
 
-def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, confirm_fontfile:bool=True):
+def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, run_only_on_fontfile:bool=True):
     """
     Iterate over the possible font files found within a path.
     """
@@ -343,27 +361,27 @@ def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, confirm_f
         for p in searchpath.iterdir():
             if p.is_dir() and depth < max_depth and p.suffix != ".ufo":
                 try:
-                    _IterDir(p, function=function, depth=depth+1, max_depth=max_depth, confirm_fontfile=confirm_fontfile)
+                    _IterDir(p, function=function, depth=depth+1, max_depth=max_depth, run_only_on_fontfile=run_only_on_fontfile)
                 except PermissionError:
                     pass
             else:
-                if confirm_fontfile is False or p.suffix in FONTFILES:
+                if run_only_on_fontfile is False or p.suffix in FONTFILES:
                     function(p)
     else:
-        if confirm_fontfile is False or searchpath.suffix in FONTFILES:
+        if run_only_on_fontfile is False or searchpath.suffix in FONTFILES:
             function(searchpath)
 
-def __add_adobe_fonts__():
+def __add_adobe_fonts__(search_op=None):
     def iterFunc(p:Path):
         if p.is_file() and p.suffix == '':
             try:
                 font = ttLib.TTFont(p)
-                __cache_individual_font__(font, p, tags={'source':'Adobe'})
+                __cache_individual_font__(font, p, tags={'source':'Adobe','search_op':search_op})
             except ttLib.TTLibError:
                 pass
 
     if LIVETYPE_LOCATION:
-        _IterDir( LIVETYPE_LOCATION, function=iterFunc, max_depth=1, confirm_fontfile=False)
+        _IterDir( LIVETYPE_LOCATION, function=iterFunc, max_depth=1, run_only_on_fontfile=False)
 
 def __add_fonts_from_relative_path__(relative_path:str, tags={}, max_depth=None, real_path:Path=None):
     if not real_path:
@@ -383,9 +401,11 @@ def __add_fonts_from_relative_path__(relative_path:str, tags={}, max_depth=None,
                     pass
         _IterDir( real_path, function=iterFunc, max_depth=max_depth)
 
-def __add_fonts_from_relative_paths__( pathset:tuple ):
-    for pathdat in pathset:
-        __add_fonts_from_relative_path__( real_path=pathdat[0], relative_path=pathdat[1], tags={'source':pathdat[2]}, max_depth=pathdat[3] )
+def __add_fonts_from_relative_paths__( pathset:tuple, search_op=None ):
+    for sub_id, pathdat in enumerate(pathset):
+        tags = {'source':pathdat[2]}
+        tags.update( {'search_op':search_op+sub_id if search_op else search_op} )
+        __add_fonts_from_relative_path__( real_path=pathdat[0], relative_path=pathdat[1], tags=tags, max_depth=pathdat[3])
 
 def __get_searchpaths__( config:dict=None)-> tuple[list,list,list]:
     prior_first = []
@@ -452,15 +472,18 @@ def update_font_info():
     if not EDGECASE_NOSEARCH:
     
         config = get_config()
-        
-        custom_searchpaths = __get_searchpaths__(config)
-        __add_fonts_from_relative_paths__( custom_searchpaths[0] )
+        search_op = 0
 
+        custom_searchpaths = __get_searchpaths__(config)
+        __add_fonts_from_relative_paths__( custom_searchpaths[0], search_op=search_op )
+        search_op += len(custom_searchpaths[0])
+        
         if config.get('only_use_config_searchpaths', 0) == 0:
 
             # get_system_fonts_filename actually locates some of the adobe fonts,
             # but it doesn't seem to get all, so running this is still useful
-            __add_adobe_fonts__()
+            __add_adobe_fonts__(search_op=search_op)
+            search_op += 1
             # __add_fonts_from_relative_path__("$HFS/houdini/fonts", tags={'source':'$HFS'})
             # __add_fonts_from_relative_path__("$TYPECASTER/fonts", tags={'source':'$TYPECASTER'})
             # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
@@ -468,11 +491,12 @@ def update_font_info():
 
             if get_system_fonts_filename:
                 found_fonts = get_system_fonts_filename()
-                __iterate_over_fontfiles__(found_fonts)
+                __iterate_over_fontfiles__(found_fonts, search_op=search_op)
+                search_op += 1
 
-
-        __add_fonts_from_relative_paths__( custom_searchpaths[1] )
-        __add_fonts_from_relative_paths__( custom_searchpaths[2] )
+        __add_fonts_from_relative_paths__( custom_searchpaths[1], search_op=search_op )
+        search_op += len(custom_searchpaths[1])
+        __add_fonts_from_relative_paths__( custom_searchpaths[2], search_op=search_op )
 
     # If No fonts were found (highly unlikely), add a fake font so that the
     # cache checkers don't endlessley refresh
