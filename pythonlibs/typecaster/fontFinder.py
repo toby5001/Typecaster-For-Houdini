@@ -177,6 +177,7 @@ class NameInfo:
 
 # EmptyInfo = NameInfo(path=None,number=None,family=None)
 
+
 def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
     """Get the best names from a TTFont object
 
@@ -212,6 +213,7 @@ def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
     #         break
     return name, family, subfamily
 
+
 # Below is an experimental idea for dumping all of the font info to a json file.
 # It could be potentially useful to get the information from this when Houdini has many python
 # sessions running in something like PDG, where the initial time to locate all of the fonts
@@ -243,6 +245,7 @@ def __info_to_jsondump__(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_
             json.dump(data, f, indent=indent)
     else:
         return json.dumps(data,indent=indent)
+
 
 # --------------------------------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------
@@ -330,27 +333,18 @@ def __iterate_over_fontfiles__(found_fonts:list[str], search_op=None):
             ttfont = ttLib.TTFont(p, fontNumber=0)
             __cache_individual_font__( ttfont, p, tags=tags, number=0)
 
-def _SearchDir( searchpath:Path, depth:int=0, max_depth:int=3):
-    """
-    Search through a path and return a list of the fonts found within.
-    """
-    results = []
-    for p in searchpath.iterdir():
-        if p.is_dir() and depth < FONT_FIND_MAX_DEPTH and depth < max_depth and p.suffix != ".ufo":
-            try:
-                res = _SearchDir(p, depth=depth+1, max_depth=max_depth)
-                if res:
-                    results.extend(res)
-            except PermissionError:
-                pass
-        else:
-            if p.suffix in FONTFILES:
-                results.append(p)
-    return results
 
 def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, run_only_on_fontfile:bool=True):
-    """
-    Iterate over the possible font files found within a path.
+    """Iterate over the possible font files found within a path.
+
+    Args:
+        searchpath (Path): Path to iterate through
+        function (FunctionType): Function to run on each valid file found when iterating through.
+            The function will be given a single path object to the current file being iterated over as an argument.
+        depth (int, optional): Internally set. Current folder depth within larger operation. Defaults to 0.
+        max_depth (int, optional): Maximum depth to recursivley search through the folder. Defaults to 3.
+        run_only_on_fontfile (bool, optional): When false, the function will be run on ALL files encountered,
+            instead of just font files. Defaults to True.
     """
     if not max_depth:
         max_depth = FONT_FIND_MAX_DEPTH
@@ -371,7 +365,9 @@ def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, run_only_
         if run_only_on_fontfile is False or searchpath.suffix in FONTFILES:
             function(searchpath)
 
+
 def __add_adobe_fonts__(search_op=None):
+    """Add any Adobe fonts found, if a path is specified for the current operating system."""
     def iterFunc(p:Path):
         if p.is_file() and p.suffix == '':
             try:
@@ -383,7 +379,9 @@ def __add_adobe_fonts__(search_op=None):
     if LIVETYPE_LOCATION:
         _IterDir( LIVETYPE_LOCATION, function=iterFunc, max_depth=1, run_only_on_fontfile=False)
 
+
 def __add_fonts_from_relative_path__(relative_path:str, tags={}, max_depth=None, real_path:Path=None):
+    """Run over a given search path and locate fonts to add. Supports relative paths."""
     if not real_path:
         real_path = to_real_path(relative_path)
     if real_path.exists():
@@ -401,13 +399,25 @@ def __add_fonts_from_relative_path__(relative_path:str, tags={}, max_depth=None,
                     pass
         _IterDir( real_path, function=iterFunc, max_depth=max_depth)
 
-def __add_fonts_from_relative_paths__( pathset:tuple, search_op=None ):
+
+def __add_fonts_from_relative_paths__( pathset:list[tuple], search_op=None ):
+    """Iterate over a list of paths created by __get_searchpaths__ with __add_fonts_from_relative_path__."""
     for sub_id, pathdat in enumerate(pathset):
         tags = {'source':pathdat[2]}
         tags.update( {'search_op':search_op+sub_id if search_op else search_op} )
         __add_fonts_from_relative_path__( real_path=pathdat[0], relative_path=pathdat[1], tags=tags, max_depth=pathdat[3])
 
-def __get_searchpaths__( config:dict=None)-> tuple[list,list,list]:
+
+def __get_searchpaths__( config:dict=None)-> tuple[list[tuple],list[tuple],list[tuple]]:
+    """Get the searchpaths from Typecaster's config.
+
+    Args:
+        config (dict, optional): Config file to run through. If not specified, the current config will be retrieved.
+
+    Returns:
+        tuple[list[tuple],list[tuple],list[tuple]]: Returns three lists of path information tuples to search through.
+            Each of the three lists correspond to a different grouping of corresponding priority numbers for operation ordering.
+    """
     prior_first = []
     prior_standard = []
     prior_last = []
@@ -514,10 +524,11 @@ def update_font_info():
 
 # --------------------------------------------------------------------------------------------------------------------------------
 
-def __lookup_if_specified__( dict:dict, key, default=None)->(dict|str|NameInfo):
+def __lookup_if_specified__( dict:dict, key, default=None):
     """Utility function which returns either the value of a dictionary, or the dictionary itself, 
     depending on if a key is given."""
     return dict if key is None else dict.get(key, default)
+
 
 def families(family:str=None) -> (dict[str]|list):
     """Returns a dictionary with key-value pairs of font families and their fonts.
@@ -525,6 +536,7 @@ def families(family:str=None) -> (dict[str]|list):
     if not _families_:
         update_font_info()
     return __lookup_if_specified__(_families_, family)
+
 
 def name_info(name:str=None) -> (dict[str,NameInfo]|NameInfo):
     """
