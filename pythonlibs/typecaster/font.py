@@ -8,7 +8,7 @@ typecaster.FontFinder provides, this is the best way to do so.
 
 import sys
 from importlib import import_module
-from typecaster.fontFinder import path_to_name_mappings
+from typecaster.fontFinder import path_to_name_mappings, T1FONTFILES
 from fontgoggles import font as fgfont
 from fontTools.ttLib import TTLibError
 from pathlib import Path
@@ -18,7 +18,7 @@ class FontNotFoundException(Exception):
     pass
 
 
-def getOpener(fontPath: Path):
+def getOpener(fontPath: Path, openerKey=None):
     """Get the correct opener for fontgoggles. Unlike the original function,
     the font is assumed to be valid by the time this function is called.
 
@@ -28,11 +28,14 @@ def getOpener(fontPath: Path):
     Returns:
         _type_: The font opener class used by fontgoggles to load a specific font type.
     """
-    openerKey = fgfont.sniffFontType(fontPath)
-    if openerKey is None:
-        if path_to_name_mappings(fontPath):
-            openerKey = "otf"
-    if openerKey is None:
+    if not openerKey:
+        openerKey = fgfont.sniffFontType(fontPath)
+        if openerKey is None:
+            if path_to_name_mappings(fontPath):
+                openerKey = "otf"
+        if openerKey is None:
+            raise FontNotFoundException
+    elif openerKey not in fgfont.fontOpeners:
         raise FontNotFoundException
     openerSpec = fgfont.fontOpeners[openerKey][1]
     moduleName, className = openerSpec.rsplit(".", 1)
@@ -57,8 +60,14 @@ class Font():
         else:
             self.path = Path(path)
         if not self.path.exists():
-            raise FontNotFoundException
-        opener = getOpener(self.path)
+            raise FontNotFoundException("File doesn't exist.")
+
+        if self.path.suffix.lower() in T1FONTFILES:
+            print(f"<TYPECASTER WARNING> Triggered T1-->OTF font conversion for [{self.path}]. T1 Font handling is unfinished and is not yet at parity with the native Font node.")
+            self.path = convert_t1_to_otf(self.path)
+            opener = getOpener(self.path, openerKey="otf")
+        else:
+            opener = getOpener(self.path)
         self.font = opener(self.path, number)
         # self.font:BaseFont = opener(self.path, number)
         self.font.cocoa = False
@@ -94,7 +103,7 @@ class Font():
             int: Best line spacing, in the font's designspace units.
         """
         """
-        I'm not sure if I should be checking use_typo_metrics or just always try using at first.
+        I'm not sure if I should be checking use_typo_metrics or just always try using it first.
         Spacing priority ordering inspired by the following posts:
         https://silnrsi.github.io/FDBP/en-US/Line_Metrics.html
         https://www.high-logic.com/font-editor/fontcreator/tutorials/font-metrics-vertical-line-spacing
@@ -206,3 +215,125 @@ class Font():
                 actual_path if actual_path else path,
                 number=number).load()
         return FontCache[path]
+
+
+def convert_t1_to_otf(input_path:Path):
+    """
+    Converts a Type 1 font into a OpenType-CFF font.
+    """
+    # Right now this always runs (if the font wasn't already in FontCache).
+    # Should I first check if the font has previously been converted?
+    """
+    Base conversion script made by Miguel Sousa
+    https://gist.github.com/miguelsousa/66ee9504039a8b64c605defa316516c1
+    """
+
+    """
+    I have no interest in creating a "bulletproof" conversion process, but I'd
+    at least like to get close to parity with Houdini's native Font node.
+    Known issues (which the native font node doesn't have):
+    1) Some oblique/italic fonts turn into regular fonts when converted.
+    2) Issues with nonstandard symbols being converted.
+    3) Some pfb files fail to be parsed.
+    """
+
+    # I think I'd rather deal with the performance penalty of running these imports
+    # multiple times rather than import all this even if a T1 font isn't ever used. 
+    from fontTools.t1Lib import T1Font
+    from fontTools.pens.basePen import NullPen
+    from fontTools.agl import toUnicode
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.t2CharStringPen import T2CharStringPen
+    import os, uuid
+    
+    try:
+        t1 = T1Font(input_path)
+        t1.parse()
+
+        # Collect 'name' table strings
+        font_name = t1.font.get('FontName', '')
+        font_info = t1.font.get('FontInfo', {})
+        full_name = font_info.get('FullName', '')
+        font_version = font_info.get('version', '')
+        name_strings = dict(
+            familyName=font_info.get('FamilyName', ''),
+            styleName=font_info.get('Weight', ''),
+            fullName=full_name,
+            psName=font_name,
+            version=f"Version {font_version}",
+            uniqueFontIdentifier=f"{font_version};{font_name}",
+        )
+
+        # Collect glyph names
+        encoding = t1.font.get('Encoding')
+        char_names = t1.font.get('CharStrings')
+        gnames = []
+        for gname in encoding:
+            if gname not in gnames:
+                gnames.append(gname)
+
+        for gname in char_names:
+            if gname not in gnames:
+                gnames.append(gname)
+
+        # Infer 'cmap' table values from glyph names
+        cmap = {}
+        for gname in gnames:
+            char = toUnicode(gname)
+            if char:
+                cmap[ord(char)] = gname
+
+        # Collect charstrings and advance widths
+        char_strings = {}
+        adv_widths = {}
+        gset = t1.getGlyphSet()
+        npen = NullPen()
+
+        for gname in gnames:
+            glyph = gset[gname]
+            glyph.draw(npen)
+            gwidth = round(glyph.width)
+            adv_widths[gname] = gwidth
+            t2pen = T2CharStringPen(gwidth, gset)
+            glyph.draw(t2pen)
+            cs = t2pen.getCharString()
+            char_strings[gname] = cs
+
+        fb = FontBuilder(1000, isTTF=False)
+        fb.setupGlyphOrder(gnames)
+        fb.setupCharacterMap(cmap)
+        fb.setupCFF(font_name, {"FullName": full_name}, char_strings, {})
+
+        lsb = {}
+        for gname, cs in char_strings.items():
+            xmin = 0
+            gbbox = cs.calcBounds(None)
+            if gbbox:
+                xmin, *_ = gbbox
+            lsb[gname] = xmin
+
+        metrics = {
+            gname: (adv_width, lsb[gname])
+            for gname, adv_width in adv_widths.items()
+        }
+
+        fb.setupHorizontalMetrics(metrics)
+        fb.setupHorizontalHeader(ascent=1000, descent=-200)
+        fb.setupNameTable(name_strings, mac=False)
+        fb.setupOS2(sTypoAscender=1000, usWinAscent=1000, usWinDescent=200)
+        fb.setupPost()
+        
+        temp_dir = os.environ.get("HOUDINI_TEMP_DIR")
+        convertedpath = (Path(temp_dir)/"Typecaster/converted_fonts").resolve()
+        convertedpath.mkdir(exist_ok=True,parents=True)
+        # convertedpath /= input_path.stem+'.otf'
+        # convertedpath /= str(hash(input_path.stem))
+        convertedpath /= str( uuid.uuid5(uuid.NAMESPACE_DNS, input_path.stem) )
+        
+        fb.save(convertedpath)
+        return convertedpath.resolve()
+    except Exception as e:
+        # Catch all errors when running the conversion to prevent surfacing a python error to the user
+        # There are so many ways that this operation can go wrong that it's better to just handle all 
+        # exceptions rather than catch specific ones.
+        raise FontNotFoundException("Failed to convert T1 font.")

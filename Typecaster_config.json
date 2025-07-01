@@ -24,27 +24,21 @@
             "       from highest to lowest priority.",
             "max_depth_override (optional):",
             "       While not often needed, this will limit the number of times a folder can",
-            "       be recursivley searched through, up to the global limit. Default to 2.",
-            "EXAMPLES----------------------------------",
-            "------------------------------------------",
-            "/path/to/your/downloads/folder",
-            "/path/to/a/different/folder",
-            {
-                "path": "C:/path/to/your/downloads/folder",
-                "source_tag": "Downloads"
-            },
-            {
-                "path": "/path/to/a/different/folder",
-                "source_tag": "Custom_1",
-                "max_depth_override": 1,
-                "priority": 1
-            }
+            "       be recursivley searched through, up to the global limit. Defaults to 2.",
+            "process_type1_fonts (optional):",
+            "       Type 1 Fonts are an older font format which is not directly compatible with",
+            "       many of the systems that Typecaster uses, and there is a much larger performance",
+            "       cost to analyze T1 fonts when searching through a directory. Because of this,",
+            "       T1 fonts will only be processed if it is enabled for the current search path.",
+            "       This does NOT have any effect on Typecaster's ability to read T1 font files,",
+            "       only search for them."
         ],
         "all": [
             {
                 "path": "$HFS/houdini/fonts",
                 "source_tag": "$HFS",
-                "priority": 2
+                "priority": 2,
+                "process_type1_fonts": 1
             },
             {
                 "path": "$TYPECASTER/fonts",
