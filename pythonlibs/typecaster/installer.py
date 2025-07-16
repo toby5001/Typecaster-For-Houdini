@@ -16,8 +16,8 @@ TYPECASTER_ROOT_PATH = Path( os.getenv('TYPECASTER') ).resolve()
 
 REQUIREMENTS_PATH = ( TYPECASTER_ROOT_PATH / "requirements.txt" ).resolve()
 
-PYTHTON_VERSION = f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}"
-PYTHON_INSTALLFOLDERNAME = f"python{PYTHTON_VERSION}libs"
+PYTHON_VERSION = f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}"
+PYTHON_INSTALLFOLDERNAME = f"python{PYTHON_VERSION}libs"
 
 TYPECASTER_PYTHON_INSTALL_PATH = (TYPECASTER_ROOT_PATH / PYTHON_INSTALLFOLDERNAME).resolve()
 
@@ -140,7 +140,7 @@ def check_install_pip(auto_install=True):
         pipgetpath.parent.mkdir(exist_ok=True)
         if sys.version_info.major < 3 or (sys.version_info.major == 3 and sys.version_info.minor < 9):
             # Main script only supports python 3.9 or higher, so get a version specific one.
-            url = f"https://bootstrap.pypa.io/pip/{PYTHTON_VERSION}/get-pip.py"
+            url = f"https://bootstrap.pypa.io/pip/{PYTHON_VERSION}/get-pip.py"
         else:
             url = f"https://bootstrap.pypa.io/pip/get-pip.py"
         command = f"""curl {url} -o {str(pipgetpath)}"""
