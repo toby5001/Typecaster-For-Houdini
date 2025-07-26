@@ -2,10 +2,10 @@ from __future__ import annotations
 import hou
 from pathlib import Path, WindowsPath, PosixPath
 from pathops import Path as PathopsPath
-from fontgoggles.misc.textInfo import TextInfo
 
 from typecaster import font as tcf
 from typecaster.houdiniPen import HoudiniCubicPen, HoudiniQuadraticPen
+from typecaster.bidi_segmentation import line_to_run_segments
 # import cProfile
 
 
@@ -65,11 +65,13 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
         Each point is then connected as a polyline to all other points within the same glyph. In Houdini,
         this allows for everything to be run through a For-Each Primitive block, separating each glyph to it's own
         multithreaded operation without having to select it in a separate operation. This enables hole operations 
-        to be run in the same time.
+        to be run at the same time.
 
     """
     
     """
+    NOTE: This issue seems to have gone away, but since I don't recall changing anything that would have done that,
+    I'm keeping the note here for now.
     FIXME: ABSOLUTELY INSANE IMPLEMENTATION ALERT
 
     Ok I completely hate this, but the draw_glyph_with_pen() function runs literally like 10x faster or more
@@ -307,11 +309,12 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
     stable_idx = 0
     true_idx = 0
     linestart = 0
+    run_id_current = 0
     unique_glyphs = {}
 
-    complexparm:hou.Parm = interfacenode.parm('complex_string')
-    complex_string = complexparm.eval() if complexparm else False
-    del complexparm
+    bidiparm:hou.Parm = interfacenode.parm('use_bidi_segmentation')
+    use_bidi_segmentation = bidiparm.eval() if bidiparm else False
+    del bidiparm
 
     # Iterate through each line in the input string independently, to avoid any issues passing newlines to harfbuzz
     for line_id, line_text in enumerate(src_text.split("\n")):
@@ -326,20 +329,20 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
 
         The main usecase for this is when RTL and LTR scripts are being used in the same line, often seen in Arabic
         since it is generally written right to left while numbers are stil left to right. While this likely can be useful
-        in other cases, handling an Arabic line with a number in it was the motvation for this functionality.
+        in other cases, handling an Arabic line with a number in it was the motivation for this functionality.
         """
         glyph_runs = []
-        if complex_string:
-            textInfo = TextInfo(line_text)
-            segments = textInfo.segments
-            for segment in segments:
-                glyph_runs.append( (fontgoggle.shaper.shape( segment[0], features=features, varLocation=variations, script=segment[1]), segment[0], segment[3]) )
+        if use_bidi_segmentation:
+            run_info = []
+            reordered_segments, run_id_current, run_info = line_to_run_segments(line_text, run_id_current, run_info)
+            for segment in reordered_segments:
+                glyph_runs.append( (fontgoggle.shaper.shape( segment[0], features=features, varLocation=variations, direction=segment[1]), segment[0], segment[3]) )
         else:
             if line_text != "":
                 glyph_runs.append( (fontgoggle.shaper.shape( line_text, features=features, varLocation=variations), line_text, 0) )
 
         glyphqueue = []
-        for glyph_run, run_text, run_start in glyph_runs:
+        for current_runidx, (glyph_run, run_text, run_start) in enumerate(glyph_runs):
             # Detect if the current chunk is reversed
             # This seems like a pretty quick-and-dirty way to do it, but it works so far (famous last words)
             is_reversed  = False
@@ -434,6 +437,7 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
                         ax_nokern = fontgoggle.shaper.font.get_glyph_h_advance(glyph.gid)
 
                 # Set all of the different ids for each glyph.
+                # This is essentially every possible identifier that might be used to segment or identify a given input string.
                 """
                 Glossary of provided IDs:
                 
@@ -452,6 +456,7 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
                     that this number is NOT stable across fonts.
                 source_idx
                     This is intended to map to the source character in the input string used in the creation of a given glyph.
+                    This should most often end up being the "reading order" for the output type.
                 codepoint_lazy
                     This is only really intended to be used as a drop-in replacement for the inbuilt Font node's textsymbol attribute.
                     This value does NOT take into account complex shaping features or ligatures, and simply gets the unicode codepoint
@@ -460,12 +465,16 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
                     The index of the glyph within the current line. This is essentially stable_idx, but resetting for each line
                 glyph_hash
                     Unique hash of the glyph's ID and varying information.
+                run_id
+                    The ID for the current text run. In a standard LTR multiline string, this will be the same as line_id, but in the case of
+                    bidirectional text, it will be based off of individual runs, taking into account line directions
                 """
                 codepoint_lazy = ord(run_text[glyph_cluster])
                 source_idx = run_start_full+glyph_cluster
                 dictstring = f"glyph{glyph.gid}"+str(sorted(glyph_variations.items()))
                 glyph_hash = hash(dictstring)
-                ids = [ line_id, stable_idx, true_idx, glyph.gid, source_idx, codepoint_lazy, line_idx, glyph_hash]
+                run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
+                ids = [ line_id, stable_idx, true_idx, glyph.gid, source_idx, codepoint_lazy, line_idx, glyph_hash, run_id]
 
                 # Check if the glyph has already been created, and mark it as existing if so.
                 if glyph_hash in unique_glyphs:
@@ -585,4 +594,4 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
     
     # profiler.disable()
     # import pstats
-    # pstats.Stats(profiler).sort_stats('tottime').print_stats()
+    # pstats.Stats(profiler).sort_stats('ncalls').print_stats()
