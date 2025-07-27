@@ -271,11 +271,11 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
     if validfont:
         # Basic stuff needed
         fontgoggle = targetfont.font
-        ptg = node.parmTemplateGroup()
+        ptg:hou.ParmTemplateGroup = node.parmTemplateGroup()
 
         # Create the menu to switch within font families
+        parmname = 'font_select_in_family'
         if triggersrc != 'family':
-            parmname = 'font_select_in_family'
             if ptg.find(parmname):
                 ptg.remove(parmname)
             if fontparminfo.family:
@@ -307,7 +307,13 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
                                                 script_callback_language=hou.scriptLanguage.Python,
                                                 join_with_next=fontparminfo.is_collection )
                     ptg.insertBefore("reload_parms", familymenu)
-
+        else:
+            familypt:hou.ParmTemplate = ptg.find(parmname)
+            if familypt and familypt.joinsWithNext() != fontparminfo.is_collection:
+                print("HIT")
+                familypt.setJoinWithNext(fontparminfo.is_collection)
+                ptg.replace(parmname, familypt)
+                
         parmname = 'font_collection_number'
         found = ptg.find(parmname)
         if found:
