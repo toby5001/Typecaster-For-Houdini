@@ -551,9 +551,12 @@ def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
     menuval = eval(familyparm.unexpandedString())
     if menuval:
         node.parm(parmnames['font']).set(menuval[0])
-        font_number = node.parm(parmnames['font_number'])
-        if font_number and menuval[1] != -1:
-            font_number.set(menuval[1])
+        font_numberparm:hou.Parm = node.parm(parmnames['font_number'])
+        if font_numberparm and menuval[1] != -1:
+            try:
+                font_numberparm.set(font_numberparm.menuItems().index(str(menuval[1])))
+            except ValueError:
+                pass
         familyparm.set('')
         node.hdaModule().update_font_parms(triggersrc='family')
         # familyparm.pressButton()
