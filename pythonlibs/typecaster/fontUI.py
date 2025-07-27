@@ -84,6 +84,7 @@ __SUBFAMILY_ORDER__ = [
     "book",
     "medium",
     "semibold",
+    "demi",
     "demibold",
     "bold",
     "extrabold",
