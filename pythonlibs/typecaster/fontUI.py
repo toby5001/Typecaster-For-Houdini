@@ -310,7 +310,6 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
         else:
             familypt:hou.ParmTemplate = ptg.find(parmname)
             if familypt and familypt.joinsWithNext() != fontparminfo.is_collection:
-                print("HIT")
                 familypt.setJoinWithNext(fontparminfo.is_collection)
                 ptg.replace(parmname, familypt)
                 
