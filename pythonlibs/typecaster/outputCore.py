@@ -276,11 +276,13 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
         linepoly.addVertex(linept)
         return linepoly
     
-    def new_glyphpt_skel( linepoly, gsz, ids):
+    def new_glyphpt_skel( linepoly, gsz, ids, offset=None):
         glyphpt_skel = geo.createPoint()
         glyphpt_skel.setAttribValue( attrib_skeltype, "glyph" )
         glyphpt_skel.setAttribValue( attrib_gsz, gsz )
         glyphpt_skel.setAttribValue( attrib_ids, ids )
+        if offset is not None:
+            glyphpt_skel.setAttribValue( attrib_gshift, offset )
         # glyphpt_skel = createPoint_delayedAttribs(skeltype='glyph', gsz=gsz, ids=ids)
         grp_skel.add(glyphpt_skel)
         linepoly.addVertex(glyphpt_skel)
@@ -502,13 +504,13 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
                     gsz.extend( [ ax_nokern, gsz[1] ] )
 
                 run_standard_glyph = True
+                offset = (float(glyph.dx),float(glyph.dy))
                 if is_reversed:
                     if glyph_cluster == glyph_cluster_next:
                         # If the current glyph_cluster is the same as the next, assume that it's (for example) an additional element like dots above and below in Arabic
                         run_standard_glyph = False
                         # It's likely possible to slightly optimize things by explicitly declaring things like direction and language, since they should be known
                         reglyph = fontgoggle.shaper.shape(run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
-                        offset = (float(reglyph.dx),float(reglyph.dy))
                         glyphqueue.append( ( gsz, ids, offset) )
                 else:
                     if glyph_cluster == glyph_cluster_last:
@@ -525,12 +527,14 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
                         # raise NotImplementedError(msg)
                         # print(msg)
                         # new_glyphpt_skel( linepoly, gsz, ids)
-                        offset = (float(glyph.dx),float(glyph.dy))
                         # new_glyphpt_skel_extension( gsz=gsz, ids=ids, offset=offset, target_glyphpt_skel=glyphpt_skel)
                         glyphqueue.append( ( gsz, ids, offset) )
 
                 if run_standard_glyph:
-                    glyphpt_skel = new_glyphpt_skel( linepoly, gsz, ids)
+                    if offset[0] != 0.0 or offset[1] != 0.0:
+                        glyphpt_skel = new_glyphpt_skel( linepoly, gsz, ids, offset)
+                    else:
+                        glyphpt_skel = new_glyphpt_skel( linepoly, gsz, ids)
             
                     if glyphqueue:
                         # The glyphqueue is used to place markings AFTER their main glyph even when the markings show up first in the glyph
