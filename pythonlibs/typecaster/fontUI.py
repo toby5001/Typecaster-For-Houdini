@@ -286,10 +286,17 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
                     for fontname in families:
                         finfo = fontFinder.name_info(fontname)
                         if fontparminfo.is_filepath:
-                            menuitems.append(finfo.interface_path)
+                            if fontparminfo.is_collection:
+                                menuitems.append(repr((finfo.interface_path, finfo.number)))
+                            else:
+                                menuitems.append(repr((finfo.interface_path, -1)))
                         else:
-                            menuitems.append(fontname)
-                        menulabels.append(finfo.subfamily)
+                            menuitems.append(repr((fontname, -1)))
+                        use_fullname:hou.Parm = node.parm('familymenu_use_full_names')
+                        if use_fullname and use_fullname.eval():
+                            menulabels.append(fontname)
+                        else:
+                            menulabels.append(finfo.subfamily)
                     menuitems, menulabels = _sort_family_menu_(menuitems, menulabels)
                     menuitems.insert(0, '')
                     menulabels.insert(0, 'Select Font         ↓')
@@ -541,9 +548,12 @@ def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
     parmnames = PARMNAMING[parm_naming_version]
     familyparm:hou.Parm = node.parm('font_select_in_family')
     # menuval = familyparm.eval()
-    menuval = familyparm.unexpandedString()
+    menuval = eval(familyparm.unexpandedString())
     if menuval:
-        node.parm(parmnames['font']).set(menuval)
+        node.parm(parmnames['font']).set(menuval[0])
+        font_number = node.parm(parmnames['font_number'])
+        if font_number and menuval[1] != -1:
+            font_number.set(menuval[1])
         familyparm.set('')
         node.hdaModule().update_font_parms(triggersrc='family')
         # familyparm.pressButton()
