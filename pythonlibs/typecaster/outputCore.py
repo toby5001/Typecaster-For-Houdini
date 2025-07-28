@@ -41,7 +41,7 @@ from typecaster.bidi_segmentation import line_to_run_segments
 #     geo.setPointFloatAttribValues('gshift', tuple(pt_attribs['gshift']) )
 
 
-def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
+def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry):
     """Main operation for taking a Typecaster font interface and outputting 
     both a series of glyph control points and a skeleton for layout and positioning.
 
@@ -324,6 +324,10 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
     bidiparm:hou.Parm = interfacenode.parm('use_bidi_segmentation')
     use_bidi_segmentation = bidiparm.eval() if bidiparm else False
     del bidiparm
+    
+    # No need to output the glyphs if the output style is frame prims
+    outputstyleparm:hou.Parm = interfacenode.parm('output_style')
+    output_glyphs = outputstyleparm.eval() != 3 if outputstyleparm else True
 
     # Iterate through each line in the input string independently, to avoid any issues passing newlines to harfbuzz
     for line_id, line_text in enumerate(src_text.split("\n")):
@@ -551,7 +555,7 @@ def output_geo_fast( interfacenode:hou.Node, node:hou.OpNode, geo:hou.Geometry):
                             new_glyphpt_skel_extension( gsz=lastdata[0], ids=lastdata[1], offset=lastdata[2], target_glyphpt_skel=glyphpt_skel)
                         glyphqueue = []
 
-                if not glyph_already_exists:
+                if output_glyphs and not glyph_already_exists:
                     # Create the polygon for the current glyph, which will contain the construction points needed for the individual bezier paths
                     glyphpoly = geo.createPolygon(is_closed=True)
                     glyphpoly.setAttribValue( attrib_prim_ids, ids )
