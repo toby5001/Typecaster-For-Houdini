@@ -553,8 +553,7 @@ def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
         node:hou.OpNode = hou.pwd()
     parmnames = PARMNAMING[parm_naming_version]
     familyparm:hou.Parm = node.parm('font_select_in_family')
-    # menuval = familyparm.eval()
-    menuval = eval(familyparm.unexpandedString())
+    menuval = eval(familyparm.evalAsString())
     if menuval:
         node.parm(parmnames['font']).set(menuval[0])
         font_numberparm:hou.Parm = node.parm(parmnames['font_number'])
