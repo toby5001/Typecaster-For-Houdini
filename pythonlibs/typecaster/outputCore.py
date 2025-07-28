@@ -1,3 +1,10 @@
+"""
+
+Submodule for Typecaster's core.
+There's basically no reason to use this submodule outside of the Typecaster::typecaster_font HDA.
+
+"""
+
 from __future__ import annotations
 import hou
 from pathlib import Path, WindowsPath, PosixPath

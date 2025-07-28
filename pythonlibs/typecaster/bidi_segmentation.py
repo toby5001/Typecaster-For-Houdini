@@ -1,3 +1,11 @@
+"""
+
+Submodule for bidirectional segmentation. This is a fairly simple wrapper for the 
+python-bidi module, creating usable segments for Typecaster's core with the apropriate 
+accompanying metadata.
+
+"""
+
 from __future__ import annotations
 from bidi.algorithm import (  # noqa: ignore E402
     get_empty_storage, get_base_level, get_embedding_levels,
