@@ -48,6 +48,7 @@ for node in hou.selectedNodes():
         parms = {}
         parms['pack_method'] = 1
         parms['leading_follow_spacing'] = 1
+        parms['glyph_remove_inline'] = 0
         triggercallback = ('file',)
 
         hole = node.evalParm('hole')
