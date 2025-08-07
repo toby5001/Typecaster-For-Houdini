@@ -6,7 +6,7 @@
             "------------------------------------------",
             "There are two main ways to list search paths, depending on your preference:",
             "1) A simple path to the folder",
-            "2) A dictionary with a path, source_tag (optional), and priority (optional), max_depth_override (optional, rarely needed)",
+            "2) A dictionary with a path, and other optional parameters (see below)",
             "PARAMETERS--------------------------------",
             "------------------------------------------",
             "path (required):",
