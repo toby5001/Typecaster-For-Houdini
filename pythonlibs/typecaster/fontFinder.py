@@ -291,8 +291,9 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
             # files in the strict order they are found is better.
             info_existing = _name_info_[fontName]
             if not info_existing.tags.get('variable',False) and tags.get('variable',False):
-                # print(f"""<WARNING> Static font named "{fontName}" is already located, but a variable font with the same name has been found. Should I prioritize the variable one even though it breaks the font search prioritization order?""")
-                if tags.get('search_op',None) is not None and tags.get('search_op',None) == info_existing.tags.get('search_op',None):
+                do_replace = tags.get('search_op',None) is not None and tags.get('search_op',None) == info_existing.tags.get('search_op',None)
+                # print(f"""  <LOG> {"Hit" if do_replace else "Failed"} condition for replacement. Current op: {tags.get('search_op',None)}, existing op: {info_existing.tags.get('search_op',None)}""")
+                if do_replace:
                     # If a variable font is found that has the same name as an existing static font
                     # AND it is within the same search operation, allow the variable font to overwrite.
                     old_posixpath = info_existing.path.as_posix()
@@ -300,6 +301,7 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
                     # All the other dicts will be overwritten when the cache operation runs.
                     del _path_to_name_mappings_[old_posixpath][info_existing.number]
                     do_cache = True
+                del do_replace
     
     elif isinstance(font, t1Lib.T1Font):
         from fontTools.misc import psLib
@@ -533,11 +535,6 @@ def update_font_info():
         search_op += len(custom_searchpaths[0])
         
         if config.get('only_use_config_searchpaths', 0) == 0:
-
-            # get_system_fonts_filename actually locates some of the adobe fonts,
-            # but it doesn't seem to get all, so running this is still useful
-            __add_adobe_fonts__(search_op=search_op)
-            search_op += 1
             # __add_fonts_from_relative_path__("$HFS/houdini/fonts", tags={'source':'$HFS'})
             # __add_fonts_from_relative_path__("$TYPECASTER/fonts", tags={'source':'$TYPECASTER'})
             # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
@@ -547,6 +544,11 @@ def update_font_info():
                 found_fonts = get_system_fonts_filename()
                 __iterate_over_fontfiles__(found_fonts, search_op=search_op)
                 search_op += 1
+            
+            # get_system_fonts_filename actually locates some of the adobe fonts,
+            # but it doesn't seem to get all, so running this is still useful
+            __add_adobe_fonts__(search_op=search_op)
+            search_op += 1
 
         __add_fonts_in_relative_paths__( custom_searchpaths[1], search_op=search_op )
         search_op += len(custom_searchpaths[1])
