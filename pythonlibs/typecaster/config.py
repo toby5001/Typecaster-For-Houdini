@@ -5,10 +5,10 @@ Submodule for parsing Typecaster's config file.
 """
 
 from json import load as json_load
-from os.path import expandvars
+import os
 from pathlib import Path
 
-CONFIG_PATHSTRING = "$TYPECASTER/Typecaster_config.json"
+CONFIG_PATHSTRING = os.getenv("TYPECASTER_CONFIG", "$TYPECASTER/Typecaster_config.json")
 
 _CONFIG_ = {}
 
@@ -20,7 +20,7 @@ def __get_config__()-> dict:
         dict: Dictionary of the config file's current state.
     """
     cfg = {}
-    filepath = Path(expandvars(CONFIG_PATHSTRING))
+    filepath = Path(os.path.expandvars(CONFIG_PATHSTRING))
     if filepath.exists():
         with filepath.open() as file:
             cfg = json_load(file)

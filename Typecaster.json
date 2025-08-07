@@ -4,6 +4,9 @@
 			"TYPECASTER": "C:/Users/Andrew/Dropbox/Projects/Typecaster-For-Houdini"
 		},
 		{
+			"TYPECASTER_CONFIG": "$TYPECASTER/Typecaster_config.json"
+		},
+		{
 			"PYTHONPATH": [
 				"${TYPECASTER}/pythonlibs",
 				{
