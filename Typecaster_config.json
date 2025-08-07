@@ -58,5 +58,9 @@
         "linux": [],
         "darwin": []
     },
-    "only_use_config_searchpaths": 0
+    "only_use_config_searchpaths": 0,
+    "fontFinder_jsoncache": {
+        "enabled": 0,
+        "path": "$TYPECASTER/.temp/typecaster_fontFinderCache.json"
+    }
 }

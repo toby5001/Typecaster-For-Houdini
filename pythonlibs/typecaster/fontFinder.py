@@ -221,16 +221,15 @@ def get_best_names(ttfont:ttLib.TTFont)->tuple[str,str,str]:
 # It could be potentially useful to get the information from this when Houdini has many python
 # sessions running in something like PDG, where the initial time to locate all of the fonts
 # could be meaningful (assuming that the workers are having their python state reset)
-def __info_to_jsondump__(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_cache.json", indent=4):
+def __info_to_jsondump__(file_path=None, indent=4):
     """Dump the the primary font info to JSON.
 
     Args:
-        to_file (bool, optional): Output to a file. Defaults to False.
-        file_path (str, optional): File path to write to. Defaults to "/.temp/fontFinder_cache.json".
+        file_path (str, optional): File path to write to. Defaults to None.
         indent (int, optional): Number of indents to use when formatting. Defaults to 4.
 
     Returns:
-        str|None: If to_file was False, the JSON will be returned as a string. Otherwise nothing will be returned.
+        str|None: If file_path is None, the JSON will be returned as a string. Otherwise nothing will be returned.
     """
     # Monkeypatching method of complex object compatibility taken from
     # this stackoverflow answer: https://stackoverflow.com/a/38764817
@@ -241,7 +240,7 @@ def __info_to_jsondump__(to_file=False, file_path="$TYPECASTER/.temp/fontFinder_
     json.JSONEncoder.default = _default
     
     data = {'name_info': name_info(), 'families': families(), 'path_to_name_mappings':path_to_name_mappings() }
-    if to_file:
+    if file_path:
         path = to_real_path(file_path)
         path.parent.mkdir(exist_ok=True)
         with path.open("w") as f:
@@ -516,43 +515,59 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
     return prior_first, prior_standard, prior_last
 
 
-def update_font_info():
+def update_font_info(force_real_update=False):
     """Search through all of the defined font search paths and rebuild all of
     the information associated with the fonts that are found.
     
     This will query the current config values, but will NOT get new config values.
+    
+    Args:
+        force_real_update (bool, optional): When True, actually search for and update the font info even if jsoncache is enabled. Defaults to False.
     """
     # print("Updating Typecaster font info")
     __clear_font_caches__()
     
-    if not EDGECASE_NOSEARCH:
-    
-        config = get_config()
-        search_op = 0
+    config = get_config()
+    jcache = config.get("fontFinder_jsoncache",{})
+    if not force_real_update and jcache.get('enabled',0):
+        # Load the font info from a json file and output it to the info dicts.
+        jpath = to_real_path(jcache.get('path',None))
+        if jpath.exists():
+            j = {}
+            with jpath.open("r") as f:
+                j = json.load(f)
+            _families_.update(j.get('families',{}))
+            n = j.get('name_info',{})
+            _name_info_.update( {k:eval(n[k]) for k in n})
+            _path_to_name_mappings_.update(j.get('path_to_name_mappings',{}))
+    else:
+        if not EDGECASE_NOSEARCH:
+            # Search for font information and output it to the info dicts.
+            search_op = 0
 
-        custom_searchpaths = __get_searchpaths__(config)
-        __add_fonts_in_relative_paths__( custom_searchpaths[0], search_op=search_op )
-        search_op += len(custom_searchpaths[0])
-        
-        if config.get('only_use_config_searchpaths', 0) == 0:
-            # __add_fonts_from_relative_path__("$HFS/houdini/fonts", tags={'source':'$HFS'})
-            # __add_fonts_from_relative_path__("$TYPECASTER/fonts", tags={'source':'$TYPECASTER'})
-            # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
-            # __add_fonts_from_relative_path__("$JOB/fonts", tags={'source':'$JOB'})
-
-            if get_system_fonts_filename:
-                found_fonts = get_system_fonts_filename()
-                __iterate_over_fontfiles__(found_fonts, search_op=search_op)
-                search_op += 1
+            custom_searchpaths = __get_searchpaths__(config)
+            __add_fonts_in_relative_paths__( custom_searchpaths[0], search_op=search_op )
+            search_op += len(custom_searchpaths[0])
             
-            # get_system_fonts_filename actually locates some of the adobe fonts,
-            # but it doesn't seem to get all, so running this is still useful
-            __add_adobe_fonts__(search_op=search_op)
-            search_op += 1
+            if config.get('only_use_config_searchpaths', 0) == 0:
+                # __add_fonts_from_relative_path__("$HFS/houdini/fonts", tags={'source':'$HFS'})
+                # __add_fonts_from_relative_path__("$TYPECASTER/fonts", tags={'source':'$TYPECASTER'})
+                # __add_fonts_from_relative_path__("$HIP/fonts", tags={'source':'$HIP'})
+                # __add_fonts_from_relative_path__("$JOB/fonts", tags={'source':'$JOB'})
 
-        __add_fonts_in_relative_paths__( custom_searchpaths[1], search_op=search_op )
-        search_op += len(custom_searchpaths[1])
-        __add_fonts_in_relative_paths__( custom_searchpaths[2], search_op=search_op )
+                if get_system_fonts_filename:
+                    found_fonts = get_system_fonts_filename()
+                    __iterate_over_fontfiles__(found_fonts, search_op=search_op)
+                    search_op += 1
+                
+                # get_system_fonts_filename actually locates some of the adobe fonts,
+                # but it doesn't seem to get all, so running this is still useful
+                __add_adobe_fonts__(search_op=search_op)
+                search_op += 1
+
+            __add_fonts_in_relative_paths__( custom_searchpaths[1], search_op=search_op )
+            search_op += len(custom_searchpaths[1])
+            __add_fonts_in_relative_paths__( custom_searchpaths[2], search_op=search_op )
 
     # If No fonts were found (highly unlikely), add a fake font so that the
     # cache checkers don't endlessley refresh
@@ -561,6 +576,18 @@ def update_font_info():
         _families_[msg] = [msg,]
         _name_info_[msg] = NameInfo( Path(msg), 0, msg )
         _path_to_name_mappings_[Path(msg)] = {0:msg}
+
+
+def update_font_info_to_json():
+    """Used to create the json cache for use when caching is enabled. Unlike 
+    update_font_info, this will actually search for font information even
+    when the cache is enabled.
+    """
+    update_font_info(force_real_update=True)
+    config = get_config()
+    jpath = config.get("fontFinder_jsoncache",{}).get('path',None)
+    if jpath:
+        __info_to_jsondump__(file_path=jpath)
 
 
 # --------------------------------------------------------------------------------------------------------------------------------
