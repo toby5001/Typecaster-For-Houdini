@@ -15,7 +15,8 @@
       <contextNetType>SOP</contextNetType>
     </toolMenuContext>
     <toolSubmenu>Typecaster/scripts</toolSubmenu>
-    <script scriptType="python"><![CDATA[import hou
+    <script scriptType="python"><![CDATA[from __future__ import annotations
+import hou
 kwargs:dict 
     
 def parm_from_parm(dst_parm:hou.Parm|hou.ParmTuple, src_parm:hou.Parm|hou.ParmTuple, src_index=None, dst_index=None):
