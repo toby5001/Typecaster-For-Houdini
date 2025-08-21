@@ -9,10 +9,11 @@ import os
 from pathlib import Path
 
 CONFIG_PATHSTRING = os.getenv("TYPECASTER_CONFIG", "$TYPECASTER/Typecaster_config.json")
-
 _CONFIG_ = {}
+__CONFIG_DEPENDENCIES__ = []
 
-def __get_config__()-> dict:
+
+def __get_config__() -> dict:
     """Get the current config WITHOUT writing it to the module anywhere. In almost
     every situation this should not be used directly.
 
@@ -26,12 +27,11 @@ def __get_config__()-> dict:
             cfg = json_load(file)
     return cfg
 
-__CONFIG_DEPENDENCIES__ = []
 
-def add_config_dependencies( *args ):
+def add_config_dependencies(*args):
     """Essentially, the goal here is that when you call update_config(),
     you'd expect all of typecaster to behave as if it's using the new config.
-    Tracking and clearing specific cached iterables connected to the config 
+    Tracking and clearing specific cached iterables connected to the config
     assists with this.
 
     An example of this would be typecaster.fontFinder's name_info(), families(), and path_to_name().
@@ -47,14 +47,16 @@ def add_config_dependencies( *args ):
     for dep in args:
         __CONFIG_DEPENDENCIES__.append(dep)
 
+
 def update_config():
     _CONFIG_.clear()
     for dependency in __CONFIG_DEPENDENCIES__:
         dependency.clear()
     _CONFIG_.update(__get_config__())
 
-def get_config() -> (dict):
-    """Returns a dictionary from the config file if it exists, initializing 
+
+def get_config() -> dict:
+    """Returns a dictionary from the config file if it exists, initializing
     the config file if it hasn't been already.
     """
     if not _CONFIG_:
