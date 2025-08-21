@@ -7,7 +7,7 @@ There's basically no reason to use this submodule outside of the Typecaster::typ
 
 from __future__ import annotations
 import hou
-from pathlib import Path, WindowsPath, PosixPath
+from pathlib import Path, WindowsPath, PosixPath  # noqa: F401
 from pathops import Path as PathopsPath
 
 from typecaster import font as tcf
@@ -153,7 +153,8 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     if os2 is None:
         raise NotImplementedError("It looks like some fonts don't always use OS/2. Is there a fallback besides a default value?")
     sCapHeight = os2.sCapHeight if hasattr(os2, "sCapHeight") else 0
-    if sCapHeight == 0: sCapHeight = os2.sTypoAscender if hasattr(os2, "sTypoAscender") else 750
+    if sCapHeight == 0:
+        sCapHeight = os2.sTypoAscender if hasattr(os2, "sTypoAscender") else 750
 
     # Set the overall scale of each glyph to be applied in Houdini, to ensure general sizing is consistent between fonts.
     upem = fontgoggle.unitsPerEm
@@ -167,7 +168,9 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
 
     # Find all the feature folders and get the value of the parameters within
     ptg = interfacenode.parmTemplateGroup()
-    featfolder_name = "general_features"; ssfolder_name = "stylistic_sets"; cvfolder_name = "character_variants"
+    featfolder_name = "general_features"
+    ssfolder_name = "stylistic_sets"
+    cvfolder_name = "character_variants"
 
     # folder = ptg.find(featfolder_name)
     # features = { parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in folder.parmTemplates() }
@@ -199,15 +202,18 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     I don't want to give in to this issue by affording it any more computation than is absolutely needed.
     """
     targetfolder = ptg.find(featfolder_name)
-    if not targetfolder: targetfolder = ptg.find(featfolder_name+'2')
+    if not targetfolder:
+        targetfolder = ptg.find(featfolder_name+'2')
     features = { parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in targetfolder.parmTemplates() }
 
     targetfolder = ptg.find(ssfolder_name)
-    if not targetfolder: targetfolder = ptg.find(ssfolder_name+'2')
+    if not targetfolder:
+        targetfolder = ptg.find(ssfolder_name+'2')
     features.update({ parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in targetfolder.parmTemplates() })
 
     targetfolder = ptg.find(cvfolder_name)
-    if not targetfolder: targetfolder = ptg.find(cvfolder_name+'2')
+    if not targetfolder:
+        targetfolder = ptg.find(cvfolder_name+'2')
     features.update({ parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in targetfolder.parmTemplates() })
 
     # Kerning causes some complexities with my optimizations for per-glyph variation, so we can take some shortcuts if it's disabled.
@@ -239,7 +245,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
         nodeinputs = node.inputs()
         try:
             geoin1: hou.Geometry = nodeinputs[1].geometry()
-            if geoin1.attribValue('__input_has_axes') == True:
+            if geoin1.attribValue('__input_has_axes'):
                 hpoints = geoin1.points()
                 varying_per_glyph = True
                 geo.setGlobalAttribValue(attrib_varying_per_glyph, True)
