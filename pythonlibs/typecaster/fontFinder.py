@@ -110,6 +110,9 @@ class NameInfo:
                 number: int,
                 family: str,
                 subfamily: str = "Regular",
+                weight: int = -1,
+                width: int = -1,
+                italic: bool = False,
                 relative_path: str|Path = None,
                 tags: dict={},
                 interface_path: str = None ):
@@ -117,6 +120,9 @@ class NameInfo:
         self.number = number
         self.family = family
         self.subfamily = subfamily
+        self.weight = weight
+        self.width = width
+        self.italic = italic
         self.relative_path = relative_path
         self.tags = tags
 
@@ -266,6 +272,7 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
         number (int, optional): Font number. Used with font collections. Defaults to 0.
         relative_path (str, optional): Relative path to the font. Useful for interfaces and other parts where you don't want to break the relative pathing of a specified font. Defaults to None.
     """
+    tags = tags.copy()
     path = path.resolve()
 
     do_cache = False
@@ -273,13 +280,22 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
         if LIVETYPE_LOCATION and path.is_relative_to(LIVETYPE_LOCATION) and tags.get('source',None) is None:
             tags['source'] = 'Adobe'
 
-        if 'variable' not in tags and font.get("fvar"):
+        fvar = font.get("fvar")
+        if 'variable' not in tags and fvar:
             tags['variable'] = True
 
         names = get_best_names(font)
         fontName = names[0]
         fontFamily = names[1]
         fontSubFamily = names[2]
+        os2 = font.get('OS/2')
+        weight = os2.usWeightClass if os2 else -1
+        width = os2.usWidthClass if os2 else -1
+        italic = False
+        if os2 and hasattr(os2, 'fsSelection'):
+            # The ITALIC bit (bit 0) in fsSelection
+            if os2.fsSelection & 0x0001:
+                italic = True
 
         # Only add the current font if it's name is wasn't already cached.
         if fontName not in _name_info_:
@@ -306,18 +322,23 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
         from fontTools.misc import psLib
         font.font = psLib.suckfont(font.data, font.encoding)
         # font.parse()
+        weight = -1
+        width = -1
         font_info = font.font.get('FontInfo', {})
         fontName = font_info.get('FullName', '')
         if fontName not in _name_info_:
             fontFamily = font_info.get('FamilyName', '')
             fontSubFamily:str = font_info.get('Weight', '')
             if font_info.get('ItalicAngle',0) < 0:
+                italic = True
                 if not fontSubFamily.lower().endswith('italic') and not fontSubFamily.lower().endswith('oblique'):
                     fontSubFamily = fontSubFamily + " Italic"
+            else:
+                italic = False
             do_cache = True
         
     if do_cache:
-        _name_info_[fontName] = NameInfo( path, number, fontFamily, subfamily=fontSubFamily, tags=tags, relative_path=relative_path )
+        _name_info_[fontName] = NameInfo( path, number, fontFamily, subfamily=fontSubFamily, weight=weight, width=width, italic=italic, tags=tags, relative_path=relative_path )
     
         posixpath = path.as_posix()
         if posixpath not in _path_to_name_mappings_:
@@ -334,16 +355,18 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
                 _families_[fontFamily].append(fontName)
 
 
-def __iterate_over_fontfiles__(found_fonts:list[str], search_op=None):
+def __iterate_over_fontfiles__(found_fonts:list[str], search_op=None, source_tag=''):
     """Iterate over a list of path strings and add them to the cache, handling any font collection files found as well.
 
     Args:
         found_fonts (list[str]): List of font paths to operate on. This list currently is assumed to only contain valid paths.
     """
     # TODO: Should there be error handling here? Or can we assume the incoming paths are valid fonts. 
+    tags = {'search_op':search_op}
+    if source_tag:
+        tags.update({'source':source_tag})
     for f in found_fonts:
         p  = Path(f)
-        tags = {'search_op':search_op}
         if p.suffix.lower() in COLLECTIONSUFFIXES:
             # print( f"{p.name} is a collection!" )
             collection = ttLib.TTCollection(p)
@@ -557,7 +580,7 @@ def update_font_info(force_real_update=False):
 
                 if get_system_fonts_filename:
                     found_fonts = get_system_fonts_filename()
-                    __iterate_over_fontfiles__(found_fonts, search_op=search_op)
+                    __iterate_over_fontfiles__(found_fonts, search_op=search_op, source_tag='System')
                     search_op += 1
                 
                 # get_system_fonts_filename actually locates some of the adobe fonts,
