@@ -7,7 +7,7 @@ The general goal of this submodule is to provide tools for identifying available
 
 from __future__ import annotations
 import json
-from pathlib import Path, WindowsPath, PosixPath
+from pathlib import Path, WindowsPath, PosixPath  # noqa: F401
 from fontTools import ttLib, t1Lib
 from platform import system as get_platform_system
 from typecaster.config import get_config, add_config_dependencies
@@ -239,7 +239,6 @@ def __info_to_jsondump__(file_path=None, indent=4):
     """
     # Monkeypatching method of complex object compatibility taken from
     # this stackoverflow answer: https://stackoverflow.com/a/38764817
-    # from json import JSONEncoder, dump as jsondump, dumps as jsondumps
     def _default(self, obj):
         return getattr(obj.__class__, "to_json", _default.default)(obj)
     _default.default = json.JSONEncoder().default
@@ -450,7 +449,7 @@ def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
                 try:
                     font = t1Lib.T1Font(p)
                     __cache_individual_font__(font, path=p, tags=tags, relative_path=relpath)
-                except:
+                except Exception:
                     # Due to how much more error-prone T1 font parsing is,
                     # catch all errors instead of just t1Lib.T1Error
                     pass
@@ -516,7 +515,7 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
                             sourcetag = searchinfo.get('source_tag', None)
                             max_depth_override = searchinfo.get('max_depth_override', max_depth_override)
                             priority = searchinfo.get('priority',priority)
-                            process_type1_fonts:bool = searchinfo.get('process_type1_fonts',0) == True
+                            process_type1_fonts:bool = searchinfo.get('process_type1_fonts',0) is True
 
                         if path:
                             relpath = path
