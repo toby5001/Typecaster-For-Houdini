@@ -49,9 +49,15 @@ FontCache = {}
 # def clear_cache():
 #     FontCache.clear()
 
-class Font():
-    # TODO support glyphs?
-    def __init__(self, path, number=0, ):
+
+class Font:
+    """Main class for individual fonts, providing the main entrypoint to fontgoggles.font and important information."""
+
+    def __init__(
+        self,
+        path,
+        number=0,
+    ):
         """Initialize a Font object. This should almost never be directly called.
         It is highly reccomended to call Font.Cacheable() instead
         """
@@ -63,13 +69,14 @@ class Font():
             raise FontNotFoundException("File doesn't exist.")
 
         if self.path.suffix.lower() in T1FONTFILES:
-            print(f"<TYPECASTER WARNING> Triggered T1-->OTF font conversion for [{self.path}]. T1 Font handling is unfinished and is not yet at parity with the native Font node.")
+            print(
+                f"<TYPECASTER WARNING> Triggered T1-->OTF font conversion for [{self.path}]. T1 Font handling is unfinished and is not yet at parity with the native Font node."
+            )
             self.path = convert_t1_to_otf(self.path)
             opener = getOpener(self.path, openerKey="otf")
         else:
             opener = getOpener(self.path)
         self.font = opener(self.path, number)
-        # self.font:BaseFont = opener(self.path, number)
         self.font.cocoa = False
         self._loaded = False
         self.load()
@@ -78,10 +85,10 @@ class Font():
         self._variations_ctf = None
         self._instances = None
         self._instances_scaled = None
-        
+
         self.best_line_spacing = self.get_best_line_spacing()
         self.bezier_order = self.get_bezier_order()
-    
+
     def load(self):
         if self._loaded:
             return self
@@ -92,8 +99,8 @@ class Font():
             except TTLibError:
                 raise FontNotFoundException
             return self
-        
-    def get_best_line_spacing(self)->int:
+
+    def get_best_line_spacing(self) -> int:
         """
         Get the best line spacing, according to the available metrics in the specified font.
         This follows a similar order of spacing lookups to Microsoft's Word (I think).
@@ -121,7 +128,7 @@ class Font():
                 sz = os2.usWinAscent + os2.usWinDescent
                 if sz > 0:
                     good = True
-        if good != True:
+        if not good:
             if "hhea" in font:
                 hhea = font["hhea"]
                 sz = hhea.ascender - hhea.descender + hhea.lineGap
@@ -158,38 +165,42 @@ class Font():
             if self._variations:
                 fvar = self._variations
                 for axis in fvar.axes:
-                    axes[axis.axisTag] = (axis.__dict__)
+                    axes[axis.axisTag] = axis.__dict__
             self._variations_ctf = axes
         return self._variations_ctf
-    
+
     def instances(self, scaled=True):
         if self._instances_scaled and scaled:
             return self._instances_scaled
         if self._variations is None:
             return None
-        
+
         if self._instances is None:
             self._instances = {}
             for x in self._variations.instances:
                 name_id = x.subfamilyNameID
                 name_record = self.font.ttFont["name"].getDebugName(name_id)
                 self._instances[name_record] = x.coordinates
-        
+
         if scaled:
             axes = self.variations()
+
             def scale(cs):
                 out = {}
                 for k, v in cs.items():
                     axis = axes[k]
-                    out[k] = (v - axis["minValue"]) / (axis["maxValue"] - axis["minValue"])
+                    out[k] = (v - axis["minValue"]) / (
+                        axis["maxValue"] - axis["minValue"]
+                    )
                 return out
-            self._instances_scaled = {k:scale(v) for k, v in self._instances.items()}
+
+            self._instances_scaled = {k: scale(v) for k, v in self._instances.items()}
             return self._instances_scaled
 
         return self._instances
 
     @staticmethod
-    def Cacheable( path:Path, number=0):
+    def Cacheable(path: Path, number=0):
         """Using a path and number, either retreive an existing font object, or create and cache a new one.
         While the functionality borrows significantly from coldtype.text.font.Font.Cacheable,
         this more cut-down version does very minimal checking for if the font is valid, only if the path exists.
@@ -209,15 +220,15 @@ class Font():
             # Incorporate the font number into the dict key, if needed
             actual_path = path
             path = f"{path}_#{number}"
-        
+
         if path not in FontCache:
             FontCache[path] = Font(
-                actual_path if actual_path else path,
-                number=number).load()
+                actual_path if actual_path else path, number=number
+            ).load()
         return FontCache[path]
 
 
-def convert_t1_to_otf(input_path:Path):
+def convert_t1_to_otf(input_path: Path):
     """
     Converts a Type 1 font into a OpenType-CFF font.
     """
@@ -238,26 +249,27 @@ def convert_t1_to_otf(input_path:Path):
     """
 
     # I think I'd rather deal with the performance penalty of running these imports
-    # multiple times rather than import all this even if a T1 font isn't ever used. 
+    # multiple times rather than import all this even if a T1 font isn't ever used.
     from fontTools.t1Lib import T1Font
     from fontTools.pens.basePen import NullPen
     from fontTools.agl import toUnicode
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.t2CharStringPen import T2CharStringPen
-    import os, uuid
-    
+    import os
+    import uuid
+
     try:
         t1 = T1Font(input_path)
         t1.parse()
 
         # Collect 'name' table strings
-        font_name = t1.font.get('FontName', '')
-        font_info = t1.font.get('FontInfo', {})
-        full_name = font_info.get('FullName', '')
-        font_version = font_info.get('version', '')
+        font_name = t1.font.get("FontName", "")
+        font_info = t1.font.get("FontInfo", {})
+        full_name = font_info.get("FullName", "")
+        font_version = font_info.get("version", "")
         name_strings = dict(
-            familyName=font_info.get('FamilyName', ''),
-            styleName=font_info.get('Weight', ''),
+            familyName=font_info.get("FamilyName", ""),
+            styleName=font_info.get("Weight", ""),
             fullName=full_name,
             psName=font_name,
             version=f"Version {font_version}",
@@ -265,8 +277,8 @@ def convert_t1_to_otf(input_path:Path):
         )
 
         # Collect glyph names
-        encoding = t1.font.get('Encoding')
-        char_names = t1.font.get('CharStrings')
+        encoding = t1.font.get("Encoding")
+        char_names = t1.font.get("CharStrings")
         gnames = []
         for gname in encoding:
             if gname not in gnames:
@@ -313,8 +325,7 @@ def convert_t1_to_otf(input_path:Path):
             lsb[gname] = xmin
 
         metrics = {
-            gname: (adv_width, lsb[gname])
-            for gname, adv_width in adv_widths.items()
+            gname: (adv_width, lsb[gname]) for gname, adv_width in adv_widths.items()
         }
 
         fb.setupHorizontalMetrics(metrics)
@@ -322,18 +333,18 @@ def convert_t1_to_otf(input_path:Path):
         fb.setupNameTable(name_strings, mac=False)
         fb.setupOS2(sTypoAscender=1000, usWinAscent=1000, usWinDescent=200)
         fb.setupPost()
-        
+
         temp_dir = os.environ.get("HOUDINI_TEMP_DIR")
-        convertedpath = (Path(temp_dir)/"Typecaster/converted_fonts").resolve()
-        convertedpath.mkdir(exist_ok=True,parents=True)
+        convertedpath = (Path(temp_dir) / "Typecaster/converted_fonts").resolve()
+        convertedpath.mkdir(exist_ok=True, parents=True)
         # convertedpath /= input_path.stem+'.otf'
         # convertedpath /= str(hash(input_path.stem))
-        convertedpath /= str( uuid.uuid5(uuid.NAMESPACE_DNS, input_path.stem) )
-        
+        convertedpath /= str(uuid.uuid5(uuid.NAMESPACE_DNS, input_path.stem))
+
         fb.save(convertedpath)
         return convertedpath.resolve()
-    except Exception as e:
+    except Exception:
         # Catch all errors when running the conversion to prevent surfacing a python error to the user
-        # There are so many ways that this operation can go wrong that it's better to just handle all 
+        # There are so many ways that this operation can go wrong that it's better to just handle all
         # exceptions rather than catch specific ones.
         raise FontNotFoundException("Failed to convert T1 font.")
