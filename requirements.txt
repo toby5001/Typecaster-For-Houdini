@@ -3,9 +3,9 @@ FindSystemFontsFilename==0.3.2; python_version >= '3.8' # This module only suppo
 fonttools[woff,ufo,unicode,pathops]==4.59.0; python_version >= '3.8'
 fonttools[woff,ufo,unicode,pathops]; python_version < '3.8' # I'm a bit more forgiving with version restrictions on older python versions since I don't fully support it.
 
+python-bidi==0.6.6; python_version >= '3.8'
 # newer python-bidi is completely incompatible with how we use it
-# python-bidi==0.4.2  # pyup: ignore
-python-bidi==0.6.6
+python-bidi==0.4.2; python_version < '3.8'
 
 # ufo2ft>=3.2.8; python_version >= '3.8' #Pin for fg issue (according to coldtype)
 ufo2ft==3.6.0; python_version >= '3.8'
