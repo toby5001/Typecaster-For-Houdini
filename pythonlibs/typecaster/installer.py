@@ -14,6 +14,8 @@ from platform import system as get_platform_system
 import contextlib
 import ssl
 import json
+import re
+import shutil
 try:
 	from urllib.request import urlopen
 	from urllib.request import Request
@@ -74,7 +76,7 @@ def install_dependencies(verbose=False):
     # Update houdini path in-place
     if TYPECASTER_PYTHON_INSTALL_PATH not in sys.path:
         print(f"Adding {TYPECASTER_PYTHON_INSTALL_PATH} to path")
-        sys.path.insert(0, TYPECASTER_PYTHON_INSTALL_PATH)
+        sys.path.insert(0, str(TYPECASTER_PYTHON_INSTALL_PATH))
     return True
 
 
@@ -132,7 +134,20 @@ def update(mode:str=None, release:str=None):
                 raise Exception(f'<TYPECASTER ERROR> Invalid release {release} specified!')
 
     if dependency_update:
-        print('Updating python dependencies...')
+        # Since typecaster might be installed to multiple houdini versions at once,
+        # it's simpler (and less error-prone) to just delete the dependencies and 
+        # reinstall them during the update
+        for f in TYPECASTER_ROOT_PATH.iterdir():
+            if f.is_dir():
+                if re.match("python\d\.\d{2}libs", f.name):
+                    print(f"""Removing folder "{f.name}" and it's contents...""")
+                    try:
+                        shutil.rmtree(f)
+                        print(f"""Folder "{f.name}" and it's contents removed successfully!""")
+                    except OSError as e:
+                        print(f"Error: {f} : {e.strerror}")
+        
+        print('Reinstalling python dependencies...')
         process = subprocess.Popen(PIP_INSTALLCMD, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
         stdout, stderr = process.communicate()
         print(process.returncode)
