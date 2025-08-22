@@ -12,6 +12,9 @@ from pathlib import Path, WindowsPath, PosixPath  # noqa: F401
 from typecaster import fontFinder
 from typecaster import font as tcf
 from fontTools.ttLib import TTCollection
+from PySide2 import QtWidgets, QtGui
+from PySide2.QtCore import Qt
+from fnmatch import fnmatch
 
 
 # # This is kinda overkil to set as a standalone variable, but this is what ensures that varaxes are always houdini-readable
@@ -823,3 +826,322 @@ def _get_family_menu_( font_parm_info: FontParmInfo) -> tuple[list[str],list[str
                 menulabels.append(finfo.subfamily)
             menuitems, menulabels = _sort_family_menu_(menuitems, menulabels)
     return menuitems, menulabels
+
+
+"""
+-----------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------
+Standalone QT UIs for more complex interfaces
+
+"""
+
+
+class FontSelector(QtWidgets.QDialog):
+    def __init__(self, parent, fontnode:hou.OpNode=None):
+        if not fontnode:
+            self.fontnode:hou.OpNode = hou.pwd()
+        else:
+            self.fontnode = fontnode
+        self.fontparm:hou.Parm = self.fontnode.parm(PARMNAMING["1.0"]["font"])
+        if not self.fontparm:
+            raise Exception("Is this being run in the appropriate context?")
+        self.fontparminfo = interpret_font_parms(self.fontnode, read_collection_fontnumber=True)
+
+        # fontfinder info
+        self.name_info = fontFinder.name_info()
+        self.families = fontFinder.families()
+        # self.weights = SUBFAMILY_ORDER.keys()
+        self.source_tags = set()
+        for k in self.name_info:
+            src = self.name_info[k].tags.get('source',None)
+            if src:
+                self.source_tags.add(src)
+
+        super(FontSelector, self).__init__(parent)
+
+        self.added_fonts = {}
+        self.font_preview_inline = False
+        self.font_preview_standalone = False
+
+        self.setWindowTitle(f"Font Selector ({self.fontnode.name()})")
+        self.buildui()
+        self.refresh()
+
+    def buildui(self):
+        main_layout = QtWidgets.QVBoxLayout()
+        btn_layout = QtWidgets.QHBoxLayout()
+
+        # Selection tree
+        self.tree_widget = QtWidgets.QTreeWidget()
+        self.tree_widget.setColumnCount(4)
+        self.tree_widget.setHeaderLabels(["Fonts", "Weight", "Source", "Is Variable", "Sample Text"])
+        self.tree_widget.setColumnHidden(4,1)
+        # self.tree_widget.setSortingEnabled(True)
+        self.tree_widget.setAlternatingRowColors(True)
+        self.tree_widget.setWhatsThis("Font selection. Double-click on a font to apply without exiting the browser, press enter to apply a font and exit, or use the buttons at the bottom of the window.")
+
+        main_layout.addWidget(self.tree_widget, stretch=2)
+        self.tree_widget.itemSelectionChanged.connect(self.tree_callback)
+        self.tree_widget.itemDoubleClicked.connect(self.apply)
+
+        # Init layout components
+        filtergrid = QtWidgets.QGridLayout()
+        main_layout.addLayout(filtergrid)
+        previewgrid = QtWidgets.QGridLayout()
+        main_layout.addLayout(previewgrid)
+        textbox = QtWidgets.QHBoxLayout()
+        main_layout.addLayout(textbox)
+
+        # Font search with completer
+        font_search_label = QtWidgets.QLabel('Font Wildcard Search: ')
+        self.font_search = QtWidgets.QLineEdit()
+        filtergrid.addWidget(font_search_label, 0, 0)
+        filtergrid.addWidget(self.font_search, 0, 1)
+        completer = QtWidgets.QCompleter(self.families.keys())
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.font_search.setCompleter(completer)
+        self.font_search.editingFinished.connect(self.apply_filters)
+        self.font_search.setWhatsThis("Search for fonts using Unix shell-style wildcards.")
+
+        # # Filter weights
+        # filter_weight_label = QtWidgets.QLabel('Weight: ')
+        # self.filter_weight = QtWidgets.QLineEdit()
+        # form.addWidget(filter_weight_label, 0, 2)
+        # form.addWidget(self.filter_weight, 0, 3)
+        # weightcompleter = QtWidgets.QCompleter(self.weights)
+        # weightcompleter.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        # self.filter_weight.setCompleter(weightcompleter)
+        # self.filter_weight.editingFinished.connect(self.apply_filters)
+        # # filter_weight_label.setHidden(True)
+        # # self.filter_weight.setHidden(True)
+
+        # Filter by search source
+        filter_source_label = QtWidgets.QLabel('Source: ')
+        self.filter_source = QtWidgets.QComboBox()
+        self.filter_source.addItem('Any')
+        for i in self.source_tags:
+            self.filter_source.addItem(i)
+        filtergrid.addWidget(filter_source_label, 0, 4)
+        filtergrid.addWidget(self.filter_source, 0, 5)
+        self.filter_source.currentIndexChanged.connect(self.apply_filters)
+        self.filter_source.setWhatsThis("Filter specific font sources.")
+
+        # Filter variable fonts
+        filter_variable_label = QtWidgets.QLabel('Variable: ')
+        self.filter_variable = QtWidgets.QComboBox()
+        for i in ['Any','Yes','No']:
+            self.filter_variable.addItem(i)
+        filtergrid.addWidget(filter_variable_label, 0, 6)
+        filtergrid.addWidget(self.filter_variable, 0, 7)
+        self.filter_variable.currentIndexChanged.connect(self.apply_filters)
+        self.filter_variable.setWhatsThis("Choose what kinds of fonts to show between variable, static, and all.")
+
+        # Font preview menu
+        font_preview_label = QtWidgets.QLabel('Preview font: ')
+        self.font_preview = QtWidgets.QComboBox()
+        for i in ['No','In-line','In-line & Text Box']:
+            self.font_preview.addItem(i)
+        previewgrid.addWidget(font_preview_label, 1, 0)
+        previewgrid.addWidget(self.font_preview, 1, 1)
+        self.font_preview.currentIndexChanged.connect(self.update_font_preview)
+        self.font_preview.setWhatsThis('Change this to preview the fonts before you apply them. "Inline" adds a preview to each item in the selection menu, and "Text Box" adds a editable text box which uses the currently highlighted font.')
+
+        # Editable text preview for current font selection
+        self.font_preview_label = QtWidgets.QLabel('Sample Text: ')
+        previewgrid.addWidget(self.font_preview_label, 2, 0)
+        self.font_preview_text = QtWidgets.QPlainTextEdit('The quick brown fox jumps over the lazy dog.\n0123456789')
+        textbox.addWidget(self.font_preview_text)
+        f = self.font_preview_text.font()
+        self.preview_font_base_pixelsize = f.pixelSize()
+        f.setPixelSize(self.preview_font_base_pixelsize*2)
+        self.font_preview_text.setFont(f)
+
+        # Size slider for text preview
+        self.sizeslider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+        textbox.addWidget(self.sizeslider)
+        self.sizeslider.valueChanged.connect(self.update_testsize)
+        self.textslider_min = 0
+        self.textslider_max = 8
+        self.sizeslider.setValue(fit(2,self.textslider_min,self.textslider_max,self.sizeslider.minimum(),self.sizeslider.maximum()))
+        self.sizeslider.setWhatsThis(f"Chose the scale of the test text, relative to the rest of the UI size. Between {self.textslider_min}x and {self.textslider_max}x.")
+
+        # Set as path toggle
+        self.set_as_path_widget = QtWidgets.QCheckBox('Set as path')
+        use_path = bool(self.fontparminfo.is_filepath and self.fontparminfo.info)
+        self.set_as_path_widget.setChecked(use_path)
+        main_layout.addWidget(self.set_as_path_widget)
+        self.set_as_path_widget.setWhatsThis('When enabled, apply the selected font as an actual path. When disabled, use the font name.')
+
+        # add apply and cancel
+        self.apply_btn = QtWidgets.QPushButton('Apply')
+        self.apply_btn_keep = QtWidgets.QPushButton('Apply (Keep Open)')
+        close_btn = QtWidgets.QPushButton('Close')
+        main_layout.addLayout(btn_layout)
+        btn_layout.addWidget(self.apply_btn)
+        btn_layout.addWidget(self.apply_btn_keep)
+        btn_layout.addWidget(close_btn)
+        self.setLayout(main_layout)
+        self.apply_btn.clicked.connect(self.apply_close)
+        self.apply_btn_keep.clicked.connect(self.apply)
+        close_btn.clicked.connect(self.close)
+        # Disable apply by default
+        self.disableApply()
+
+    def tree_callback(self):
+        items = self.tree_widget.selectedItems()
+        if items and items[0].parent():
+            # Only enable font application if the item has a parent,
+            # ensuring that it is an actual font and not a family name
+            self.enableApply()
+            if self.font_preview_standalone:
+                # Set the widget's font
+                info = self.name_info[items[0].text(0)]
+                qfnt = self.font_preview_text.font()
+                if info.path not in self.added_fonts:
+                    font_id = QtGui.QFontDatabase.addApplicationFont(str(info.path))
+                    self.added_fonts[info.path] = font_id
+                qfnt.setFamily(info.family)
+                qfnt.setStyleName(info.subfamily)
+                qfnt.setStyleStrategy(QtGui.QFont.NoFontMerging)
+                self.font_preview_text.setFont(qfnt)
+        else:
+            self.disableApply()
+
+    def update_testsize(self,val): 
+        sz = self.preview_font_base_pixelsize*fit(val,self.sizeslider.minimum(),self.sizeslider.maximum(),self.textslider_min,self.textslider_max)
+        f = self.font_preview_text.font()
+        f.setPixelSize(sz)
+        self.font_preview_text.setFont(f)
+
+    def enableApply(self):
+        self.apply_btn.setEnabled(True)
+        self.apply_btn_keep.setEnabled(True)
+
+    def disableApply(self):
+        self.apply_btn.setEnabled(False)
+        self.apply_btn_keep.setEnabled(False)
+
+    def apply_filters(self):
+        """Triggered when a filter is modified and causes an update of the items in the font tree."""
+        searchterm = self.font_search.text()
+        sourcefilter = None if self.filter_source.currentIndex() == 0 else self.filter_source.currentText()
+        varfilter = self.filter_variable.currentIndex()
+        self.update_font_tree(searchterm, sourcefilter, varfilter)
+
+    def update_font_tree(self, fontfilter:str=None, sourcefilter:str=None, varfilter:int=0):
+        """Update the font selection tree.
+
+        Args:
+            fontfilter (str, optional): Filter to apply to font names when building the tree. Defaults to None.
+            sourcefilter (str, optional): Source name to filter using fontFinder.NameInfo source tags. Defaults to None.
+            varfilter (int, optional): Filter based off of if a font is variable. Defaults to 0.
+        """
+        self.tree_widget.clear()
+        items = []
+        
+        run_filters=False
+        if fontfilter or sourcefilter or varfilter != 0:
+            run_filters = True
+        for famname in sorted(self.families):
+            item = QtWidgets.QTreeWidgetItem([famname])
+            # item.setFlags((item.flags() & ~Qt.ItemFlag.ItemIsSelectable))
+            add_fam = False
+            for fnt in _sort_family_(self.families[famname]):
+                info = self.name_info[fnt]
+                if run_filters:
+                    # I'm not completely happy with using fnmatch as the main 
+                    # searcher matcher for this, but wildcard search is super useful
+                    if fontfilter and not fnmatch(fnt, fontfilter):
+                        continue
+                    if varfilter > 0:
+                        if varfilter == 1 and info.tags.get('variable',False) is False:
+                            continue
+                        elif varfilter == 2 and info.tags.get('variable',False) is True:
+                            continue
+                    if sourcefilter:
+                        if info.tags.get('source', None) != sourcefilter:
+                            continue
+                add_fam = True
+                var = 'Yes' if 'variable' in info.tags and info.tags['variable'] is True else 'No'
+                src =  info.tags.get('source','')
+                subitem = QtWidgets.QTreeWidgetItem([fnt, info.subfamily, src, var, 'The quick brown fox jumps over the lazy dog.'])
+                if self.font_preview_inline:
+                    self._set_subitem_font_(subitem,info)
+                
+                item.addChild(subitem)
+            if add_fam:
+                items.append(item)
+        self.tree_widget.addTopLevelItems(items)
+        self.tree_widget.expandAll()
+        self.tree_widget.resizeColumnToContents(0)
+
+    def update_font_preview(self):
+        val = self.font_preview.currentIndex()
+        self.font_preview_inline = val > 0
+        self.font_preview_standalone = val > 1
+
+        self.font_preview_label.setHidden(1 - self.font_preview_standalone)
+        self.font_preview_text.setHidden(1 - self.font_preview_standalone)
+        self.sizeslider.setHidden(1 - self.font_preview_standalone)
+        if self.font_preview_standalone:
+            self.tree_callback()
+        if self.font_preview_inline:
+            for i in range(self.tree_widget.topLevelItemCount()):
+                item = self.tree_widget.topLevelItem(i)
+                for j in range(item.childCount()):
+                    subitem = item.child(j)
+                    self._set_subitem_font_(subitem, self.name_info[subitem.text(0)])
+            self.tree_widget.setColumnHidden(4,0)
+        else:
+            self.tree_widget.setColumnHidden(4,1)
+
+    def _set_subitem_font_(self, subitem:QtWidgets.QTreeWidgetItem, info:fontFinder.NameInfo=None):
+        qfnt = subitem.font(0)
+        if info.path not in self.added_fonts:
+            font_id = QtGui.QFontDatabase.addApplicationFont(str(info.path))
+            self.added_fonts[info.path] = font_id
+        qfnt.setFamily(info.family)
+        qfnt.setStyleName(info.subfamily)
+        qfnt.setStyleStrategy(QtGui.QFont.NoFontMerging)
+        subitem.setFont(4, qfnt)
+
+    def apply(self):
+        """Apply the currently selected font to the font node."""
+        native_font = self.fontnode.type().name() == "font"
+        items = self.tree_widget.selectedItems()
+        if items:
+            item = items[0]
+            if item.parent():
+                fontname = item.text(0)
+                info = self.name_info.get(fontname,None)
+                if info:
+                    as_path = self.set_as_path_widget.isChecked()
+                    if as_path:
+                        fontname = info.interface_path
+
+                    if native_font:
+                        if native_font and as_path and info.number > 0:
+                            val = QtWidgets.QMessageBox.warning(
+                                self,
+                                'Problem with applying font!', 
+                                'You have selected a font that is a part of a collection, which is only compatible with Typecaster and not the native font node. Applying will likely result in the wrong font being used.',
+                                QtWidgets.QMessageBox.Apply | QtWidgets.QMessageBox.Cancel
+                            )
+                            if val == QtWidgets.QMessageBox.StandardButton.Apply:
+                                self.fontparm.set(fontname)
+                        else:
+                            self.fontparm.set(fontname)
+                    else:
+                        self.fontparm.set(fontname)
+                        update_font_parms(self.fontnode, newnumber=info.number)
+
+    def apply_close(self):
+        self.apply()
+        self.close()
+
+    def refresh(self):
+        self.update_font_tree()
+        self.update_font_preview()
+
+        self.show()
+        self.raise_()
