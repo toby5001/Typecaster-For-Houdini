@@ -5,9 +5,10 @@ Submodule for functionality related to updating and parsing the interface of Typ
 """
 
 from __future__ import annotations
-import hou, re
+import hou
+import re
 from typing import NamedTuple
-from pathlib import Path, WindowsPath, PosixPath
+from pathlib import Path, WindowsPath, PosixPath  # noqa: F401
 from typecaster import fontFinder
 from typecaster import font as tcf
 from fontTools.ttLib import TTCollection
@@ -71,32 +72,31 @@ featureDefaults = {
 }
 
 
-__SUBFAMILY_ORDER__ = [
-    "hairline",
-    "extralight",
-    "ultralight",
-    "ultrathin",
-    "thin",
-    "light",
-    "regular",
-    "roman",
-    "normal",
-    "book",
-    "medium",
-    "semibold",
-    "demi",
-    "demibold",
-    "bold",
-    "extrabold",
-    "ultrabold",
-    "heavy",
-    "black",
-    "extrablack",
-]
-SUBFAMILY_ORDER = {}
-for i, sf in enumerate(__SUBFAMILY_ORDER__):
-    SUBFAMILY_ORDER[sf] = i
-del __SUBFAMILY_ORDER__
+SUBFAMILY_ORDER = {
+    "Hairline":0,
+    "ExtraThin":0,
+    "UltraThin":0,
+    "Thin":100,
+    "ExtraLight":200,
+    "UltraLight":200,
+    "Light":300,
+    "Book":400,
+    "Normal":400,
+    "Regular":400,
+    "Roman":400,
+    "Medium":500,
+    "SemiBold":600,
+    "Demi":600,
+    "DemiBold":600,
+    "Bold":700,
+    "ExtraBold":800,
+    "UltraBold":800,
+    "Heavy":850,
+    "Black":900,
+    "ExtraBlack":1000,
+    "UltraBlack":1000,
+    "Super":1000
+}
 
 
 # This isn't really needed right now, but it could be useful to support the changing of parameter names across multiple asset versions.
@@ -111,9 +111,14 @@ PARMNAMING = {
 }
 
 
+def clamp( value: float, min: float=0, max: float=1):
+    """Returns value clamped between min and max."""
+    return min if value < min else max if value > max else value
+
+
 def fit( valin: float, omin: float=0, omax: float=1, nmin: float=0, nmax: float=1):
     """Takes the value in one range and shifts it to the corresponding value in a new range."""
-    fac = (valin - omin) / (omax - omin)
+    fac = (clamp(valin,omin,omax) - omin) / (omax - omin)
     return nmin + fac * (nmax - nmin)
 
 
@@ -243,7 +248,7 @@ def get_varaxes_vexops(font_info_string:str):
     return vexremap,vexreader
 
 
-def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
+def update_font_parms(node:hou.OpNode=None, triggersrc:str=None, newnumber:int=-1):
     """Update all font-dependent components of the interface. The functionality can be split into two categories:
     1) Features, which are toggleable components of a font that often inform glyph substitutions
 
@@ -262,7 +267,7 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
     if fontparminfo.validfont:
         # Do I need to do this any more? Or is fontparminfo.validfont reliable enough.
         try:
-            targetfont = tcf.Font.Cacheable(fontparminfo.path, number=fontparminfo.number)
+            targetfont = tcf.Font.Cacheable(fontparminfo.path, number=fontparminfo.number if newnumber == -1 else newnumber)
             validfont = True
         except tcf.FontNotFoundException:
             # No need to indicate an error here, since typecaster_core will be erroring in the case at the same time
@@ -353,7 +358,9 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
 
             varfoldername = "varaxes"
             varfolder = ptg.find(varfoldername)
-            if not varfolder: varfoldername = varfoldername+'2'; varfolder = ptg.find(varfoldername)
+            if not varfolder:
+                varfoldername = varfoldername+'2'
+                varfolder = ptg.find(varfoldername)
             existing_parms = { parm.name() : parm for parm in varfolder.parmTemplates()}
 
             # Create the instance preset menu, remove it if it already existed
@@ -409,18 +416,26 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
             node.parm('has_varying_parms').set(0)
 
         # Find all the feature folders and add their already existing parameters
-        featfolder_name = "general_features"; ssfolder_name = "stylistic_sets"; cvfolder_name = "character_variants"
+        featfolder_name = "general_features"
+        ssfolder_name = "stylistic_sets"
+        cvfolder_name = "character_variants"
 
         targetfolder = ptg.find(featfolder_name)
-        if not targetfolder: featfolder_name = featfolder_name+'2'; targetfolder = ptg.find(featfolder_name)
+        if not targetfolder:
+            featfolder_name = featfolder_name+'2'
+            targetfolder = ptg.find(featfolder_name)
         existing_parms.update({ parm.name() : parm for parm in targetfolder.parmTemplates()})
 
         targetfolder = ptg.find(ssfolder_name)
-        if not targetfolder: ssfolder_name = ssfolder_name+'2'; targetfolder = ptg.find(ssfolder_name)
+        if not targetfolder:
+            ssfolder_name = ssfolder_name+'2'
+            targetfolder = ptg.find(ssfolder_name)
         existing_parms.update({ parm.name() : parm for parm in targetfolder.parmTemplates()})
 
         targetfolder = ptg.find(cvfolder_name)
-        if not targetfolder: cvfolder_name = cvfolder_name+'2'; targetfolder = ptg.find(cvfolder_name)
+        if not targetfolder:
+            cvfolder_name = cvfolder_name+'2'
+            targetfolder = ptg.find(cvfolder_name)
         existing_parms.update({ parm.name() : parm for parm in targetfolder.parmTemplates()})
 
         # Construct all of the font's feature toggles
@@ -441,7 +456,8 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
             # Add all the features to the interface that are supposed to be user-controlled,
             # separating out Stylistic Sets and Character variants into their own folder
             stylisticsets = []
-            general_counter = 0; cvar_counter = 0
+            general_counter = 0
+            cvar_counter = 0
             for featname in combined_features:
                 if featname.startswith('ss') and len(featname) == 4:
                     stylisticsets.append(featname)
@@ -490,6 +506,11 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None):
         # Set the new modified ptg
         node.setParmTemplateGroup(ptg)
 
+        if fontparminfo.is_collection and newnumber != -1:
+            fontnumberparm:hou.Parm = node.parm('font_collection_number')
+            if fontnumberparm:
+                fontnumberparm.set(fontnumberparm.menuItems().index(str(newnumber)))
+
         # # Set the string referenced for vex attribute handling
         # node.parm('vex_varAxesMapping').set(vexremap)
         # node.parm('vex_varAxesReading').set(vexreader)
@@ -522,6 +543,12 @@ def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"
             # If currently a path with a corresponding name...
             fontparmval = fontinfo.name
             fontnumber = fontinfo.number
+        else:
+            msg = 'Unable to swap from path to name! This path might not be searched by Typecaster.'
+            if hou.isUIAvailable():
+                hou.ui.displayMessage(msg, severity=hou.severityType.Warning, title='Typecaster')
+            else:
+                print(f"<TYPECASTER WARNING> {msg}")
     elif (swap_mode==0 or swap_mode==2):
         # If currently a name...
         fontparmval = fontinfo.info.interface_path
@@ -529,18 +556,7 @@ def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"
     if fontparmval:
         fontparm = node.parm(parmnames['font'])
         fontparm.set(fontparmval)
-        node.hdaModule().update_font_parms(node=node)
-
-        numberparm = node.parm(parmnames['font_number'])
-        if fontnumber and numberparm:
-            try:
-                # Since the list of fonts in the collection is now sorted,
-                # we need to figure out where the correct number actually is.
-                fontnumber = list(numberparm.menuItems()).index(str(fontnumber))
-                numberparm.set(fontnumber)
-                node.hdaModule().update_font_parms(node=node, triggersrc='collection')
-            except ValueError:
-                pass
+        node.hdaModule().update_font_parms(node=node, newnumber=fontnumber)
 
 
 def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
@@ -731,7 +747,7 @@ def _get_subfamily_priority_( subname:str)->int:
     subname = subname.lower().replace(" ","")
     matchorder = []
     for tgt in SUBFAMILY_ORDER:
-        match = re.match(f".*{tgt}.*", subname)
+        match = re.match(f".*{tgt.lower()}.*", subname)
         sz = 0
         if match:
             span = match.span()
@@ -739,6 +755,10 @@ def _get_subfamily_priority_( subname:str)->int:
         matchorder.append( (sz, tgt) )
     closestmatch = sorted(matchorder)[-1][1]
     return SUBFAMILY_ORDER[closestmatch]
+
+
+def _get_weight_priority_from_info_(info:fontFinder.NameInfo):
+    return info.weight + info.italic + (info.width*10000) if info.weight != -1 else _get_subfamily_priority_(info.subfamily)
 
 
 def _sort_family_( family_list:list[str]):
@@ -750,8 +770,9 @@ def _sort_family_( family_list:list[str]):
     Returns:
         list[str]: Sorted version of family_list
     """
-    d_name_info: dict[fontFinder.NameInfo] = fontFinder.name_info()
-    return sorted( family_list, key=lambda item: _get_subfamily_priority_( d_name_info[item].subfamily ) )
+    d_name_info: dict[str,fontFinder.NameInfo] = fontFinder.name_info()
+    # return sorted( family_list, key=lambda item: _get_subfamily_priority_( d_name_info[item].subfamily ) )
+    return sorted( family_list, key=lambda item: _get_weight_priority_from_info_(d_name_info[item]))
 
 
 def _sort_family_menu_( menu_items:list[str], menu_labels:list[str], subfamily_names:list[str]=None) -> tuple[list[str],list[str]]:
