@@ -80,6 +80,18 @@ def install_dependencies(verbose=False):
     return True
 
 
+def clear_dependencies():
+    for f in TYPECASTER_ROOT_PATH.iterdir():
+        if f.is_dir():
+            if re.match("python\d\.\d{2}libs", f.name):
+                print(f"""Removing folder "{f.name}" and it's contents...""")
+                try:
+                    shutil.rmtree(f)
+                    print(f"""Folder "{f.name}" and it's contents removed successfully!""")
+                except OSError as e:
+                    print(f"Error: {f} : {e.strerror}")
+
+
 def update(mode:str=None, release:str=None):
     """Update Typecaster using the github repo
 
@@ -137,16 +149,7 @@ def update(mode:str=None, release:str=None):
         # Since typecaster might be installed to multiple houdini versions at once,
         # it's simpler (and less error-prone) to just delete the dependencies and 
         # reinstall them during the update
-        for f in TYPECASTER_ROOT_PATH.iterdir():
-            if f.is_dir():
-                if re.match("python\d\.\d{2}libs", f.name):
-                    print(f"""Removing folder "{f.name}" and it's contents...""")
-                    try:
-                        shutil.rmtree(f)
-                        print(f"""Folder "{f.name}" and it's contents removed successfully!""")
-                    except OSError as e:
-                        print(f"Error: {f} : {e.strerror}")
-        
+        clear_dependencies()
         print('Reinstalling python dependencies...')
         process = subprocess.Popen(PIP_INSTALLCMD, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
         stdout, stderr = process.communicate()
@@ -319,6 +322,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("operation", help='The operation you would like to do. Options are "update" (or "u"), "install_dependencies" or ("id"), and "nocli" to bypass the CLI tool completely.')
     parser.add_argument("-r", "--release", help='What release to use. Options are "l" for latest, "lc" for latest commit, or a specific release (eg: "1.0.0e").')
+    parser.add_argument("-c", "--clear", action='store_true', help='When enabled and the operation is install_dependencies, clear anything in the pythonX.XXlibs folders.')
 
     args = parser.parse_args()
 
@@ -367,6 +371,8 @@ if __name__ == "__main__":
                 update('release_tag', release=selection)
                 
     elif operation == 'id' or operation == 'install_dependencies':
+        if args.clear:
+            clear_dependencies()
         check_install(force_if_not_valid=True)
     elif operation == 'nocli':
         print("Bypassing CLI")
