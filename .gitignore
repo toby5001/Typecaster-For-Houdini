@@ -1,3 +1,6 @@
+# Ignore standard config file created by typecaster
+Typecaster_config.json
+
 # Ignore all backups
 backup
 dev/backup
