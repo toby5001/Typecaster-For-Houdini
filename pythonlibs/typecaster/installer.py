@@ -119,6 +119,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
     # print("Updating Typecaster from github...")
     dependency_update = False
     discardcmd = f"git stash && {'git stash drop && ' if discard_changes else ''}"
+    fetchcmd = 'git fetch origin && git fetch --prune origin "+refs/tags/*:refs/tags/*" && '
     
     if mode == 'latest_commit':
         # Pull the latest commit
@@ -133,7 +134,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
         # Checkout the latest normal release
         rels = get_releases()['stable']
         if rels:
-            dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git fetch origin && git checkout {rels[0]}")
+            dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}{fetchcmd}git checkout {rels[0]}")
         else:
             raise Exception('<TYPECASTER ERROR> No stable releases found!')
 
@@ -141,7 +142,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
         # Checkout the latest release
         rels = get_releases()['all']
         if rels:
-            dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git fetch origin && git checkout {rels[0]}")
+            dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}{fetchcmd}git checkout {rels[0]}")
     
     elif mode == 'release_tag':
         # Checkout a user-defined release tag
@@ -150,7 +151,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
             raise Exception('<TYPECASTER ERROR> Release not specified!')
         else:
             if release in rels:
-                dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git fetch origin && git checkout {release}")
+                dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}{fetchcmd}git checkout {release}")
             else:
                 raise Exception(f'<TYPECASTER ERROR> Invalid release {release} specified!')
 
@@ -276,7 +277,7 @@ def get_releases(ignore_error=False):
         raise Exception(f'<TYPECASTER ERROR> No releases found for {TYPECASTER_URL}!')
 
 
-def get_update_cmd(mode: str = "", release: str = "", discard_changes: bool = False, explicit_path=False):
+def get_update_cmd(mode: str = "", release: str = "", discard_changes: bool = False, explicit_path=True):
     code = 'hython "'
     # if use_command_line_tools:
     #     code = 'hython "'
