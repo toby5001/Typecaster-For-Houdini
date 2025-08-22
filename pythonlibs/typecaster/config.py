@@ -4,11 +4,13 @@ Submodule for parsing Typecaster's config file.
 
 """
 
-from json import load as json_load
+from json import load, dump
 import os
 from pathlib import Path
 
 CONFIG_PATHSTRING = os.getenv("TYPECASTER_CONFIG", "$TYPECASTER/Typecaster_config.json")
+DEFAULT_CONFIG_PATH = ( Path( os.getenv('TYPECASTER') ) / 'config/Typecaster_defaultConfig.json' ).resolve()
+JSON_INDENT = 4
 _CONFIG_ = {}
 __CONFIG_DEPENDENCIES__ = []
 
@@ -22,9 +24,15 @@ def __get_config__() -> dict:
     """
     cfg = {}
     filepath = Path(os.path.expandvars(CONFIG_PATHSTRING))
-    if filepath.exists():
-        with filepath.open() as file:
-            cfg = json_load(file)
+    if not filepath.exists():
+        print(f"<TYPECASTER> Config file not found at path {filepath}. Creating from default config.")
+        with filepath.open('w') as f:
+            dcfg = {}
+            with DEFAULT_CONFIG_PATH.open() as df:
+                dcfg = load(df)
+            dump(dcfg, f, indent=JSON_INDENT)
+    with filepath.open() as file:
+        cfg = load(file)
     return cfg
 
 
