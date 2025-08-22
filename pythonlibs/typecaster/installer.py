@@ -94,19 +94,42 @@ def clear_dependencies():
                     print(f"Error: {f} : {e.strerror}")
 
 
-def update(mode:str=None, release:str=None):
+def update(mode:str=None, release:str=None, discard_changes=False):
     """Update Typecaster using the github repo
 
     Args:
         mode (str): How to update Typecaster. Options are "latest_commit", "latest_stable", "latest_release", and "release_tag".
         release (str, optional): When mode is set to "release_tag", this should be a string of a specific release (eg: "1.0.0e"). Defaults to None.
+        discard_changes (bool, optional): When true, any changes made to the repo will be discarded. This flag is likely required if any changes have been made to tracked files.
 
     Raises:
         Exception: Raised if no releases are able to be found.
     """        
     # print("Updating Typecaster from github...")
     dependency_update = False
+
+    def run_discard_changes():
+        process = subprocess.Popen('git stash; git stash drop', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
+        if process.returncode == 0:
+            return True
+        else:
+            print("Discarding changes failed with the following error:")
+            print(stderr.decode())
+            return False
+    
+    def checkout_release(release:str):
+        process = subprocess.Popen(f'git checkout {release}', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
+        if process.returncode == 0:
+            return True
+        else:
+            print(f"Checking out tagged release {release} failed with the following error:")
+            print(stderr.decode())
+            return False
+    
     if mode == 'latest_commit':
+        # Pull the latest commit
+        if discard_changes:
+            run_discard_changes()
         print("Pulling from latest commit...")
         process = subprocess.Popen('git pull', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
         stdout, stderr = process.communicate()
@@ -121,29 +144,33 @@ def update(mode:str=None, release:str=None):
             print(stderr.decode())
     
     elif mode == 'latest_stable':
+        # Checkout the latest normal release
         rels = get_releases()['stable']
-        if rels:    
-            print(f"Updating using release {rels[0]}")
-            raise NotImplementedError("Still need to do this part...")
-            dependency_update = True
+        if rels:
+            if discard_changes:
+                run_discard_changes()
+            dependency_update = checkout_release(rels[0])
         else:
             raise Exception('<TYPECASTER ERROR> No stable releases found!')
+
     elif mode == 'latest_release':
+        # Checkout the latest release
         rels = get_releases()['all']
         if rels:
-            print(f"Updating using release {rels[0]}")
-            raise NotImplementedError("Still need to do this part...")
-            dependency_update = True
+            if discard_changes:
+                run_discard_changes()
+            dependency_update = checkout_release(rels[0])
     
     elif mode == 'release_tag':
+        # Checkout a user-defined release tag
         rels = get_releases()['all']
         if not release:
             raise Exception('<TYPECASTER ERROR> Release not specified!')
         else:
             if release in rels:
-                print(f"Updating by release tag {release}")
-                raise NotImplementedError("Still need to do this part...")
-                dependency_update = True
+                if discard_changes:
+                    run_discard_changes()
+                dependency_update = checkout_release(release)
             else:
                 raise Exception(f'<TYPECASTER ERROR> Invalid release {release} specified!')
 
@@ -286,7 +313,7 @@ def get_releases(ignore_error=False):
         raise Exception(f'<TYPECASTER ERROR> No releases found for {TYPECASTER_URL}!')
 
 
-def get_update_cmd(mode: str = "", release: str = "", explicit_path=False):
+def get_update_cmd(mode: str = "", release: str = "", discard_changes: bool = False, explicit_path=False):
     code = 'hython "'
     # if use_command_line_tools:
     #     code = 'hython "'
@@ -310,6 +337,9 @@ def get_update_cmd(mode: str = "", release: str = "", explicit_path=False):
         code += "-r lr"
     elif mode == "release_tag":
         code += f"-r {release}"
+    
+    if discard_changes:
+        code += "-d"
 
     return code
 
@@ -323,30 +353,34 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("operation", help='The operation you would like to do. Options are "update" (or "u"), "install_dependencies" or ("id"), and "nocli" to bypass the CLI tool completely.')
-    parser.add_argument("-r", "--release", help='What release to use. Options are "l" for latest, "lc" for latest commit, or a specific release (eg: "1.0.0e").')
-    parser.add_argument("-c", "--clear", action='store_true', help='When enabled and the operation is install_dependencies, clear anything in the pythonX.XXlibs folders.')
+    parser.add_argument("-r", "--release", help='What release to use. Options are "ls" for latest stable release, "lr" for latest release, "lc" for latest commit, or a specific release (eg: "1.0.0e").')
+    parser.add_argument("-c", "--clear", action='store_true', help='When enabled and the operation is "install_dependencies", clear anything in the pythonX.XXlibs folders.')
+    parser.add_argument("-d", "--discard_changes", action='store_true', help='When enabled and the operation is "update", any changes made to the repo will be discarded. This flag is likely required if any changes have been made to tracked files')
 
     args = parser.parse_args()
 
     operation = args.operation.lower()
     if operation == 'u' or operation == 'update':
+        mode = None
+        release = None
         if args.release:
             if args.release in options_flat:
                 if args.release in options[0]:
-                    update('latest_commit')
+                    mode = 'latest_commit'
                 elif args.release in options[1]:
                     # Update using latest stable version
                     print("Updating to the latest stable release.")
-                    update('latest_stable')
+                    mode = 'latest_stable'
                 elif args.release in options[2]:
                     print("Updating to the latest release.")
-                    update('latest_release')
+                    mode = 'latest_release'
             else:
                 # Check if the string is an existing release and update using it if so.
                 print("Release specified. Likely a specific version.")
                 rels = get_releases()['all']
                 if args.release in rels:
-                    update('release_tag', release=args.release)
+                    mode = 'release_tag'
+                    release = args.release
                 else:
                     raise Exception("<TYPECASTER ERROR> The release you specified doesn't exist!")
         else:
@@ -357,20 +391,21 @@ if __name__ == "__main__":
                 if selection not in options:
                     print("Please select a valid option!")
             if selection in options[0]:
-                update('latest_commit')
+                mode = 'latest_commit'
             elif selection in options[1] or selection in options[2]:
-                update('latest_stable')
+                mode = 'latest_stable'
             elif selection in options[2]:
-                update('latest_release')
+                mode = 'latest_release'
             elif selection in options[3]:
                 rels = get_releases()['all']
                 print("Recent releases:", rels[0:8 if len(rels) >= 8 else len(rels)])
                 selection = ''
-                while selection not in rels:
-                    selection = input("Selection: ")
-                    if selection not in rels:
+                while release not in rels:
+                    release = input("Selection: ")
+                    if release not in rels:
                         print("Please select a valid option!")
-                update('release_tag', release=selection)
+                mode = 'release_tag'
+        update(mode=mode, release=release, discard_changes=args.discard_changes)
                 
     elif operation == 'id' or operation == 'install_dependencies':
         if args.clear:
@@ -383,7 +418,7 @@ if __name__ == "__main__":
         raise Exception(f'<TYPECASTER ERROR> Unexpected operation of "{operation}"!')
 else:
     # Override update function when being run from another module, since this is presumbaly now in Houdini
-    def update(mode:str='', release:str='', explicit_path=False):
+    def update(*args, **kwargs):
         print("installer.release() can't currently be run from a Houdini session. Please run the following from Houdini's Command Line Tools:")
-        cmd = get_update_cmd(mode, release, explicit_path)
+        cmd = get_update_cmd(*args, **kwargs)
         print(cmd)
