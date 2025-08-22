@@ -16,6 +16,7 @@ import ssl
 import json
 import re
 import shutil
+import hashlib
 try:
 	from urllib.request import urlopen
 	from urllib.request import Request
@@ -51,6 +52,16 @@ def __runcmd__(cmd, do_print=True):
             print(f'Running command "{cmd}" failed with the following error:')
             print(stderr.decode())
         return False, stdout, stderr
+
+
+def __get_filehash__(file:Path):
+    fhash = None
+    if file.exists():
+        with file.open('rb') as f:
+            hashfunc = hashlib.new('sha256')
+            hashfunc.update(f.read())
+            fhash = hashfunc.hexdigest()
+    return fhash
 
 
 def install_dependencies():
@@ -105,7 +116,7 @@ def clear_dependencies():
                     print(f"Error: {f} : {e.strerror}")
 
 
-def update(mode:str=None, release:str=None, discard_changes=False):
+def update(mode:str=None, release:str=None, discard_changes=False, branch=None, force_clear=True):
     """Update Typecaster using the github repo
 
     Args:
@@ -120,11 +131,12 @@ def update(mode:str=None, release:str=None, discard_changes=False):
     dependency_update = False
     discardcmd = f"git stash && {'git stash drop && ' if discard_changes else ''}"
     fetchcmd = 'git fetch origin && git fetch --prune origin "+refs/tags/*:refs/tags/*" && '
+    reqhash = __get_filehash__(REQUIREMENTS_PATH)
     
     if mode == 'latest_commit':
         # Pull the latest commit
         print("Pulling from latest commit...")
-        dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git checkout main && git pull")
+        dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git checkout {branch if branch else 'main'} && git pull")
         if dependency_update:
             if stdout.decode().endswith("Already up to date.\n"):
                 print("Already on the latest commit!")
@@ -154,6 +166,11 @@ def update(mode:str=None, release:str=None, discard_changes=False):
                 dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}{fetchcmd}git checkout {release}")
             else:
                 raise Exception(f'<TYPECASTER ERROR> Invalid release {release} specified!')
+
+    newreqhash = __get_filehash__(REQUIREMENTS_PATH)
+    if not force_clear and dependency_update and reqhash and reqhash == newreqhash:
+        print(f"{REQUIREMENTS_PATH.name} is unchanged. Preserving dependencies.")
+        dependency_update = False
 
     if dependency_update:
         # Since typecaster might be installed to multiple houdini versions at once,
@@ -316,10 +333,11 @@ if __name__ == "__main__":
     options_flat = [item for sublist in options for item in sublist]
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("operation", help='The operation you would like to do. Options are "update" (or "u"), "install_dependencies" or ("id"), and "nocli" to bypass the CLI tool completely.')
+    parser.add_argument("operation", help='The operation you would like to do. Options are "update" (or "u"), "install_dependencies" (or "id"), and "nocli" to bypass the CLI tool completely.')
     parser.add_argument("-r", "--release", help='What release to use. Options are "ls" for latest stable release, "lr" for latest release, "lc" for latest commit, or a specific release (eg: "1.0.0e").')
-    parser.add_argument("-c", "--clear", action='store_true', help='When enabled and the operation is "install_dependencies", clear anything in the pythonX.XXlibs folders.')
+    parser.add_argument("-c", "--clear", action='store_true', help='When enabled, clear anything in the pythonX.XXlibs folders.')
     parser.add_argument("-d", "--discard_changes", action='store_true', help='When enabled and the operation is "update", any changes made to the repo will be discarded. This flag is likely required if any changes have been made to tracked files')
+    parser.add_argument("-b", "--branch", help='A specific branch to use when release is set to "latest commit". Defaults to "main" when not set.')
 
     args = parser.parse_args()
 
@@ -327,7 +345,10 @@ if __name__ == "__main__":
     if operation == 'u' or operation == 'update':
         mode = None
         release = None
+        branch = None
+        clear = args.clear
         if args.release:
+            branch = args.branch
             if args.release in options_flat:
                 if args.release in options[0]:
                     mode = 'latest_commit'
@@ -369,7 +390,7 @@ if __name__ == "__main__":
                     if release not in rels:
                         print("Please select a valid option!")
                 mode = 'release_tag'
-        update(mode=mode, release=release, discard_changes=args.discard_changes)
+        update(mode=mode, release=release, discard_changes=args.discard_changes, branch=branch, force_clear=clear)
                 
     elif operation == 'id' or operation == 'install_dependencies':
         if args.clear:
