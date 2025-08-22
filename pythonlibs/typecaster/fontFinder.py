@@ -515,7 +515,7 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
                             sourcetag = searchinfo.get('source_tag', None)
                             max_depth_override = searchinfo.get('max_depth_override', max_depth_override)
                             priority = searchinfo.get('priority',priority)
-                            process_type1_fonts:bool = searchinfo.get('process_type1_fonts',0) is True
+                            process_type1_fonts:bool = searchinfo.get('process_type1_fonts',0) == 1
 
                         if path:
                             relpath = path
