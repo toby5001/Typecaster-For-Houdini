@@ -40,6 +40,19 @@ HMINOR = int(os.getenv("HOUDINI_MINOR_RELEASE"))
 PIP_INSTALLCMD = f"""hython -m pip install --target "{TYPECASTER_PYTHON_INSTALL_PATH}" -r {REQUIREMENTS_PATH} --upgrade"""
     
 
+def __runcmd__(cmd, do_print=True):
+    process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
+    stdout, stderr = process.communicate()
+        
+    if process.returncode == 0:
+        return True, stdout, stderr
+    else:
+        if do_print:
+            print(f'Running command "{cmd}" failed with the following error:')
+            print(stderr.decode())
+        return False, stdout, stderr
+
+
 def install_dependencies():
     """Install Typecaster's dependencies that are not included with the main distribution.
 
@@ -61,11 +74,9 @@ def install_dependencies():
     # If it doesn't already exist, create the folder which all of the packages will be installed into
     TYPECASTER_PYTHON_INSTALL_PATH.mkdir(exist_ok=True)
 
-    print("Installing Typecaster dependency packages...")
-    process = subprocess.Popen(PIP_INSTALLCMD, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-
-    if process.returncode == 0:
+    print(f"Installing Typecaster dependencies for python {PYTHON_VERSION}...")
+    success, stdout, stderr = __runcmd__(PIP_INSTALLCMD, do_print=False)
+    if success:
         print("Dependency install process executed successfully")
     else:
         print("Dependency install process failed with error:")
@@ -100,56 +111,29 @@ def update(mode:str=None, release:str=None, discard_changes=False):
     Args:
         mode (str): How to update Typecaster. Options are "latest_commit", "latest_stable", "latest_release", and "release_tag".
         release (str, optional): When mode is set to "release_tag", this should be a string of a specific release (eg: "1.0.0e"). Defaults to None.
-        discard_changes (bool, optional): When true, any changes made to the repo will be discarded. This flag is likely required if any changes have been made to tracked files.
+        discard_changes (bool, optional): When true, any changes made to the repo will be stashed and then permanently discarded.
 
     Raises:
         Exception: Raised if no releases are able to be found.
     """        
     # print("Updating Typecaster from github...")
     dependency_update = False
-
-    def run_discard_changes():
-        process = subprocess.Popen('git stash; git stash drop', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
-        if process.returncode == 0:
-            return True
-        else:
-            print("Discarding changes failed with the following error:")
-            print(stderr.decode())
-            return False
-    
-    def checkout_release(release:str):
-        process = subprocess.Popen(f'git checkout {release}', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
-        if process.returncode == 0:
-            return True
-        else:
-            print(f"Checking out tagged release {release} failed with the following error:")
-            print(stderr.decode())
-            return False
+    discardcmd = f"git stash && {'git stash drop && ' if discard_changes else ''}"
     
     if mode == 'latest_commit':
         # Pull the latest commit
-        if discard_changes:
-            run_discard_changes()
         print("Pulling from latest commit...")
-        process = subprocess.Popen('git pull', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
-        stdout, stderr = process.communicate()
-        
-        if process.returncode == 0:
-            if stdout.decode() == "Already up to date.\n":
+        dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git checkout main && git pull")
+        if dependency_update:
+            if stdout.decode().endswith("Already up to date.\n"):
                 print("Already on the latest commit!")
-            else:
-                dependency_update = True
-        else:
-            print("Updating using git pull failed with the following error:")
-            print(stderr.decode())
+                dependency_update = False
     
     elif mode == 'latest_stable':
         # Checkout the latest normal release
         rels = get_releases()['stable']
         if rels:
-            if discard_changes:
-                run_discard_changes()
-            dependency_update = checkout_release(rels[0])
+            dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git fetch origin && git checkout {rels[0]}")
         else:
             raise Exception('<TYPECASTER ERROR> No stable releases found!')
 
@@ -157,9 +141,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
         # Checkout the latest release
         rels = get_releases()['all']
         if rels:
-            if discard_changes:
-                run_discard_changes()
-            dependency_update = checkout_release(rels[0])
+            dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git fetch origin && git checkout {rels[0]}")
     
     elif mode == 'release_tag':
         # Checkout a user-defined release tag
@@ -168,9 +150,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
             raise Exception('<TYPECASTER ERROR> Release not specified!')
         else:
             if release in rels:
-                if discard_changes:
-                    run_discard_changes()
-                dependency_update = checkout_release(release)
+                dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git fetch origin && git checkout {release}")
             else:
                 raise Exception(f'<TYPECASTER ERROR> Invalid release {release} specified!')
 
@@ -179,12 +159,7 @@ def update(mode:str=None, release:str=None, discard_changes=False):
         # it's simpler (and less error-prone) to just delete the dependencies and 
         # reinstall them during the update
         clear_dependencies()
-        print('Reinstalling python dependencies...')
-        process = subprocess.Popen(PIP_INSTALLCMD, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
-        stdout, stderr = process.communicate()
-        print(process.returncode)
-        print(stdout.decode())
-        print(stderr.decode())
+        install_dependencies()
 
 
 def check_install(auto_install=True, force_if_not_valid=False):
@@ -232,13 +207,11 @@ def check_install_pip(auto_install=True):
     Raises:
         Exception: Raised if pip couldn't be run AND it couldn't be installed.
     """    
-    cmd_piptest = "hython -m pip"
     print("Attempting to run pip...")
-    process = subprocess.Popen(cmd_piptest, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
+    success, stdout, stderr = __runcmd__("hython -m pip", do_print=False)
 
     haspip = False
-    if process.returncode == 0:
+    if success:
         print("pip appears to be installed!")
         haspip = True
     elif auto_install:
@@ -251,25 +224,15 @@ def check_install_pip(auto_install=True):
             url = f"https://bootstrap.pypa.io/pip/{PYTHON_VERSION}/get-pip.py"
         else:
             url = "https://bootstrap.pypa.io/pip/get-pip.py"
-        command = f"curl {url} -o {str(pipgetpath)}"
-        print( f"Downloading get-pip.py to {pipgetpath}")
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-
-        if process.returncode == 0:
+        
+        # Download pip installer
+        success, stdout, stderr = __runcmd__(f"curl {url} -o {str(pipgetpath)}",do_print=False)
+        if success:
             print("get-pip.py successfully downloaded.")
-
-            # While I'd prefer to install pip to houdini specifically, putting stuff here involves admin privileges
-            # pippath = (Path(os.getenv("PYTHONHOME"))/"Scripts").resolve()
-            # pippath.mkdir(exist_ok=True)
-            # command = f"""hython {pipgetpath} --prefix="{pippath}" """
-                
-            command = f"hython {pipgetpath}"
             print("Running get-pip.py...")
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = process.communicate()
-            
-            if process.returncode == 0:
+            # Run pip installer
+            success, stdout, stderr = __runcmd__(f"hython {pipgetpath}",do_print=False)
+            if success:
                 print("pip install process success!")
                 haspip = True
             else:
