@@ -83,7 +83,7 @@ def install_dependencies(verbose=False):
 def clear_dependencies():
     for f in TYPECASTER_ROOT_PATH.iterdir():
         if f.is_dir():
-            if re.match("python\d\.\d{2}libs", f.name):
+            if re.match("python\d\.\d{1,2}libs", f.name):
                 print(f"""Removing folder "{f.name}" and it's contents...""")
                 try:
                     shutil.rmtree(f)
