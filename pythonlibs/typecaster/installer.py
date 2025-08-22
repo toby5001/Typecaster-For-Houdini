@@ -40,7 +40,7 @@ HMINOR = int(os.getenv("HOUDINI_MINOR_RELEASE"))
 PIP_INSTALLCMD = f"""hython -m pip install --target "{TYPECASTER_PYTHON_INSTALL_PATH}" -r {REQUIREMENTS_PATH} --upgrade"""
     
 
-def install_dependencies(verbose=False):
+def install_dependencies():
     """Install Typecaster's dependencies that are not included with the main distribution.
 
     Args:
@@ -55,7 +55,7 @@ def install_dependencies(verbose=False):
         print( f"pip not installed by default in this version of Houdini ({HMAJOR}.{HMINOR})! Checking for an existing installation.")
         pipstatus = check_install_pip()
         if not pipstatus:
-            print("pip could not be found or installed. Typecaster install process terminated.")
+            raise Exception("pip could not be found or installed. Typecaster install process terminated.")
             return False
     
     # If it doesn't already exist, create the folder which all of the packages will be installed into
@@ -67,8 +67,6 @@ def install_dependencies(verbose=False):
 
     if process.returncode == 0:
         print("Dependency install process executed successfully")
-        if verbose:
-            print(stdout.decode())
     else:
         print("Dependency install process failed with error:")
         print(stderr.decode())
@@ -373,7 +371,7 @@ if __name__ == "__main__":
     elif operation == 'id' or operation == 'install_dependencies':
         if args.clear:
             clear_dependencies()
-        check_install(force_if_not_valid=True)
+        install_dependencies()
     elif operation == 'nocli':
         print("Bypassing CLI")
         pass
