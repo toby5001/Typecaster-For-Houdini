@@ -79,6 +79,10 @@ def install_dependencies():
 
 
 def clear_dependencies():
+    """Clear any existing pythonX.XXlibs folders."""
+    # This a straightforward way to ensure that the secondary python packages used by
+    # Typecaster don't get out of step with the versions expected in the current commit.
+    print(f"Removing existing pythonX.XXlibs folders in {TYPECASTER_ROOT_PATH}.")
     for f in TYPECASTER_ROOT_PATH.iterdir():
         if f.is_dir():
             if re.match("python\d\.\d{1,2}libs", f.name):
