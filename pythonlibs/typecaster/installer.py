@@ -177,9 +177,11 @@ def update(mode:str=None, release:str=None, discard_changes=False, branch=None, 
         raise Exception(f'<TYPECASTER ERROR> Unknown update mode of {mode} specified!')
 
     newreqhash = __get_filehash__(REQUIREMENTS_PATH)
+    updated = dependency_update
     if not force_clear and dependency_update and reqhash and reqhash == newreqhash:
         print(f"{REQUIREMENTS_PATH.name} is unchanged. Preserving dependencies.")
         dependency_update = False
+        updated = True
 
     if dependency_update:
         # Since typecaster might be installed to multiple houdini versions at once,
@@ -187,6 +189,10 @@ def update(mode:str=None, release:str=None, discard_changes=False, branch=None, 
         # reinstall them during the update
         clear_dependencies()
         install_dependencies()
+    
+    if updated:
+        print("Typecaster Successfully updated!")
+    return updated
 
 
 def check_install(auto_install=True, force_if_not_valid=False):
@@ -558,7 +564,9 @@ if __name__ == "__main__":
                     discard_changes = self.discard_changes.isChecked()
                     branch = self.branch_select.currentText()
                     force_clear = self.clear_dependencies.isChecked()
-                update(mode=MODEOPTIONS[selection][0], release=self.release_tag.currentText(), discard_changes=discard_changes, branch=branch, force_clear=force_clear)
+                result = update(mode=MODEOPTIONS[selection][0], release=self.release_tag.currentText(), discard_changes=discard_changes, branch=branch, force_clear=force_clear)
+                if result:
+                    self.addlogitem("Update process completed. Window can be safely closed.")
 
             def refresh(self):
                 self.callback_update_method()
