@@ -433,34 +433,15 @@ if __name__ == "__main__":
         from PySide2 import QtWidgets, QtGui
         from PySide2.QtCore import Qt
 
-        class QuestionWindow(QtWidgets.QMainWindow):
+        class QuestionWindow(QtWidgets.QMessageBox):
             def __init__(self):
                 super().__init__()
-                self.setWindowTitle("Typecaster Standalone Updater")
-                self.main_layout = QtWidgets.QVBoxLayout()
-                self.question_container = QtWidgets.QWidget()
-                question_layout = QtWidgets.QVBoxLayout()
-                questionlabel = QtWidgets.QLabel('What would you like to do?')
-                question_layout.addWidget(questionlabel)
-                btn_layout = QtWidgets.QHBoxLayout()
-                btn_update = QtWidgets.QPushButton('Update Typecaster')
-                btn_update.clicked.connect(self.activate_updater)
-                btn_layout.addWidget(btn_update)
-                btn_installdeps = QtWidgets.QPushButton('Reinstall Dependencies')
-                btn_layout.addWidget(btn_installdeps)
-                question_layout.addLayout(btn_layout)
-                self.question_container.setLayout(question_layout)
-                self.main_layout.addWidget(self.question_container)
-
-                container = QtWidgets.QWidget()
-                container.setLayout(self.main_layout)
-                self.setCentralWidget(container)
-
-                self.selection = None
-
-            def activate_updater(self):
-                self.selection = 'update'
-                self.close()
+                self.setWindowTitle("Typecaster Standalone Installer")
+                self.setText("What would you like to do?")
+                # self.setInformativeText("This action cannot be undone.")
+                self.button_update = self.addButton("Update Typecaster", QtWidgets.QMessageBox.ActionRole)
+                self.button_installdeps = self.addButton("Reinstall Dependencies", QtWidgets.QMessageBox.ActionRole)
+                self.button_close = self.addButton("Close", QtWidgets.QMessageBox.RejectRole)
 
         class UpdaterWindow(QtWidgets.QMainWindow):
             def __init__(self):
@@ -489,7 +470,6 @@ if __name__ == "__main__":
                     self.update_method.addItem(i)
                 self.configlayout.addWidget(self.update_method)
                 self.update_method.currentIndexChanged.connect(self.callback_update_method)
-                self.configlayout.addStretch()
 
                 # Release selector
                 self.release_label = QtWidgets.QLabel('Release: ')
@@ -506,6 +486,8 @@ if __name__ == "__main__":
                 self.configlayout.addWidget(self.advanced_group)
                 self.advanced_group.setLayout(self.advanced_layout)
                 self.advanced_layout.setLabelAlignment(Qt.AlignRight)
+
+                self.configlayout.addStretch()
 
                 # Advanced options
                 self.clear_dependencies = QtWidgets.QCheckBox('Force Clear Dependencies')
@@ -586,11 +568,18 @@ if __name__ == "__main__":
         window = QuestionWindow()
         window.show()
         run = app.exec_()
-
-        if window.selection == 'update':
+        btn = window.clickedButton()
+        if btn == window.button_update:
             window = UpdaterWindow()
             window.show()
             run = app.exec_()
+        elif btn == window.button_installdeps:
+            QtWidgets.QMessageBox.warning(
+                window,
+                "Error!",
+                "Installing Typecaster's dependencies from the GUI is not yet supported. Please run operation from the CLI.",
+                QtWidgets.QMessageBox.Close,
+            )
 
         sys.exit(run)
 
