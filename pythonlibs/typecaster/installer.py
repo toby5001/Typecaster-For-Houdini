@@ -99,7 +99,7 @@ def install_dependencies():
     if success and TYPECASTER_PYTHON_INSTALL_PATH not in sys.path:
         print(f"Adding {TYPECASTER_PYTHON_INSTALL_PATH} to path")
         sys.path.insert(0, str(TYPECASTER_PYTHON_INSTALL_PATH))
-    return True
+    return success
 
 
 def clear_dependencies():
@@ -220,7 +220,6 @@ def check_install(auto_install=True, force_if_not_valid=False):
         validinstall = True
     except ImportError:
         validinstall = False
-        pass
 
     if not validinstall:
         print("Typecaster could not be initialized properly. Are the dependencies installed?")
@@ -230,7 +229,7 @@ def check_install(auto_install=True, force_if_not_valid=False):
             print("Auto-install is enabled in the config. Attempting install.")
             validinstall = install_dependencies()
         else:
-            print("""Auto-install is disabled. Please either run the installer from the shelf tool, or run typecaster.installer.install() from a python shell.""")
+            print("""Auto-install is disabled. Please either run the installer from the shelf tool, or run typecaster.installer.install_dependencies() from a python shell.""")
     elif force_if_not_valid:
         print("Typecaster already is installed!")
     return validinstall
