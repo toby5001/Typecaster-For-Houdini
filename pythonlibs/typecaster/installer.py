@@ -140,10 +140,11 @@ def update(mode:str=None, release:str=None, discard_changes=False, branch=None, 
         # Pull the latest commit
         print("Updating to the latest commit")
         dependency_update, stdout, stderr = __runcmd__(f"{discardcmd}git checkout {branch if branch else 'main'} && git pull")
-        if dependency_update:
-            if stdout.decode().endswith("Already up to date.\n"):
-                print("Already on the latest commit!")
-                dependency_update = False
+        # Ideally I'll figure out a way to reimplement this, but it doesn't properly handle multiple operations being run in the same command
+        # if dependency_update:
+        #     if stdout.decode().endswith("Already up to date.\n"):
+        #         print("Already on the latest commit!")
+        #         dependency_update = False
 
     elif mode == 'latest_stable_release':
         # Checkout the latest normal release
