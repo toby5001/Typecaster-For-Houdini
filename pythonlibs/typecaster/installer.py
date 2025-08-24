@@ -557,8 +557,9 @@ if __name__ == "__main__":
                             self.release_tag.addItem(release)
                 self.release_label.setVisible(specific_release)
                 self.release_tag.setVisible(specific_release)
-                self.branch_label.setEnabled(selection==1)
-                self.branch_select.setEnabled(selection==1)
+                if self.advanced_group.isChecked():
+                    self.branch_label.setEnabled(selection==1)
+                    self.branch_select.setEnabled(selection==1)
 
             def enable_log(self):
                 self.logcontainer.setVisible(True)
