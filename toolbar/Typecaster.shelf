@@ -6,11 +6,17 @@
  a single file. -->
 
   <toolshelf name="Typecaster" label="Typecaster">
-    <memberTool name="installTypecaster"/>
-    <memberTool name="convertFontNode"/>
+    <memberTool name="typecaster_installerGUI"/>
+    <memberTool name="typecaster_convertFontNode"/>
   </toolshelf>
 
-  <tool name="convertFontNode" label="Convert Font to Typecaster Font" icon="PLASMA_App">
+  <tool name="typecaster_installerGUI" label="Open Installer" icon="PLASMA_App">
+    <toolSubmenu>Typecaster/scripts</toolSubmenu>
+    <script scriptType="python"><![CDATA[from typecaster import installer
+installer.launch_gui()]]></script>
+  </tool>
+
+  <tool name="typecaster_convertFontNode" label="Convert Font to Typecaster Font" icon="PLASMA_App">
     <toolMenuContext name="network">
       <contextNetType>SOP</contextNetType>
     </toolMenuContext>
@@ -107,11 +113,5 @@ for node in hou.selectedNodes():
             
             nodename = f"tc_{node.name()}"
             tcnode.setName( nodename, unique_name=True)]]></script>
-  </tool>
-
-  <tool name="installTypecaster" label="Install Typecaster" icon="PLASMA_App">
-    <toolSubmenu>Typecaster/scripts</toolSubmenu>
-    <script scriptType="python"><![CDATA[from typecaster import installer
-installer.check_install(force_if_not_valid=True)]]></script>
   </tool>
 </shelfDocument>

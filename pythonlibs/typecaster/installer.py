@@ -37,6 +37,7 @@ PYTHON_INSTALLFOLDERNAME = f"python{PYTHON_VERSION}libs"
 TYPECASTER_PYTHON_INSTALL_PATH = (TYPECASTER_ROOT_PATH / PYTHON_INSTALLFOLDERNAME).resolve()
 HMAJOR = int(os.getenv("HOUDINI_MAJOR_RELEASE"))
 HMINOR = int(os.getenv("HOUDINI_MINOR_RELEASE"))
+PLATFORM = get_platform_system().upper()
 
 
 def __runcmd__(cmd, do_print=True):
@@ -321,7 +322,7 @@ def get_update_cmd(mode:str=None, release:str=None, discard_changes=False, branc
     if explicit_path:
         code += TYPECASTER_ROOT_PATH.as_posix()
     else:
-        if get_platform_system().upper() == "WINDOWS":
+        if PLATFORM == "WINDOWS":
             code += "%TYPECASTER%"
         else:
             code += "$TYPECASTER"
@@ -345,6 +346,16 @@ def get_update_cmd(mode:str=None, release:str=None, discard_changes=False, branc
         code += "--c"
 
     return code
+
+
+def launch_gui():
+    print("Launching standalone GUI for Typecaster. Please wait...")
+    cmd = f"hython {__file__} gui"
+    if PLATFORM == "WINDOWS":
+        cmd = f"start /B {cmd}"
+    else:
+        cmd = f"nohup {cmd} &"
+    subprocess.run(cmd, shell=True)
 
 
 if __name__ == "__main__":
@@ -445,7 +456,7 @@ if __name__ == "__main__":
                 super().__init__()
                 self.setWindowTitle("Typecaster Standalone Installer")
                 self.setText("What would you like to do?")
-                # self.setInformativeText("This action cannot be undone.")
+                self.setInformativeText("Please make sure that you don't have any currently running instances of Houdini before proceeding.")
                 self.button_update = self.addButton("Update Typecaster", QtWidgets.QMessageBox.ActionRole)
                 self.button_installdeps = self.addButton("Reinstall Dependencies", QtWidgets.QMessageBox.ActionRole)
                 self.button_close = self.addButton("Close", QtWidgets.QMessageBox.RejectRole)
@@ -522,6 +533,7 @@ if __name__ == "__main__":
                 fnt.setStyleHint(QtGui.QFont.Monospace)
                 self.logwindow.setFont(fnt)
                 self.logwindow.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
+                self.setBaseSize(self.sizeHint())
                 self.logcontainer.setVisible(False)
                 
                 self.refresh()
