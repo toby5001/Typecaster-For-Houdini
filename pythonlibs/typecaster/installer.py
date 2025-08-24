@@ -25,11 +25,11 @@ except ModuleNotFoundError or ImportError:
 	from urllib2.request import Request # type: ignore
 
 
-TYPECASTER_ROOT_PATH = Path( os.getenv('TYPECASTER') ).resolve()
 # No point in working with the installer if $TYPECASTER doesn't exist.
-if not os.getenv('TYPECASTER') or not TYPECASTER_ROOT_PATH.exists():
-    raise Exception("Could not find the TYPECASTER environment variable or the path doesn't exist!")
+if not os.getenv('TYPECASTER') or not Path( os.getenv('TYPECASTER') ).exists():
+    raise Exception("Could not find the TYPECASTER environment variable or the path it's referencing doesn't exist!")
 
+TYPECASTER_ROOT_PATH = Path( os.getenv('TYPECASTER') ).resolve()
 TYPECASTER_URL = 'https://api.github.com/repos/toby5001/Typecaster-For-Houdini'
 REQUIREMENTS_PATH = ( TYPECASTER_ROOT_PATH / "requirements.txt" ).resolve()
 PYTHON_VERSION = f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}"
