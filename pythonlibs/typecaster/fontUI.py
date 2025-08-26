@@ -12,8 +12,14 @@ from pathlib import Path, WindowsPath, PosixPath  # noqa: F401
 from typecaster import fontFinder
 from typecaster import font as tcf
 from fontTools.ttLib import TTCollection
-from PySide2 import QtWidgets, QtGui
-from PySide2.QtCore import Qt
+try:
+    from PySide6 import QtWidgets, QtGui
+    from PySide6.QtCore import Qt
+    PS2 = False
+except ModuleNotFoundError:
+    from PySide2 import QtWidgets, QtGui
+    from PySide2.QtCore import Qt
+    PS2 = True
 from fnmatch import fnmatch
 
 

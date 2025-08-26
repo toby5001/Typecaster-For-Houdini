@@ -218,7 +218,7 @@ def check_install(auto_install=True, force_if_not_valid=False):
         from typecaster.bidi_segmentation import line_to_run_segments # noqa: F401
         del line_to_run_segments
         validinstall = True
-    except ImportError:
+    except ImportError or ModuleNotFoundError:
         validinstall = False
 
     if not validinstall:
@@ -447,8 +447,14 @@ if __name__ == "__main__":
 
     elif standalone_mode == 'gui':
         print("<TYPECASTER> Using Installer GUI")
-        from PySide2 import QtWidgets, QtGui
-        from PySide2.QtCore import Qt
+        try:
+            from PySide6 import QtWidgets, QtGui
+            from PySide6.QtCore import Qt
+            PS2 = False
+        except ModuleNotFoundError:
+            from PySide2 import QtWidgets, QtGui
+            from PySide2.QtCore import Qt
+            PS2 = True
 
         class QuestionWindow(QtWidgets.QMessageBox):
             def __init__(self):
@@ -588,7 +594,10 @@ if __name__ == "__main__":
         # app.setStyle('Windows')
         window = QuestionWindow()
         window.show()
-        run = app.exec_()
+        if PS2:
+            run = app.exec_()
+        else:
+            run = app.exec()
         btn = window.clickedButton()
         if btn == window.button_update:
             window = UpdaterWindow()
