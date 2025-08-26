@@ -133,7 +133,7 @@ def update(mode:str=None, release:str=None, discard_changes=False, branch=None, 
     """        
     # print("Updating Typecaster from github...")
     dependency_update = False
-    discardcmd = f"git stash && {'git stash drop && ' if discard_changes else ''}"
+    discardcmd = f"git stash && {'git stash drop ; ' if discard_changes else ''}"
     fetchcmd = 'git fetch origin && git fetch --prune origin "+refs/tags/*:refs/tags/*" && '
     reqhash = __get_filehash__(REQUIREMENTS_PATH)
 
