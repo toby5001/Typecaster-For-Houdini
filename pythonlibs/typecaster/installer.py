@@ -210,6 +210,10 @@ def check_install(auto_install=True, force_if_not_valid=False):
         bool: Returns True if typecaster is installed, or it was installed.
     """
     validinstall = False
+    # The following is requred for compatibility with H21.0.440, which includes a broken version of fontTools.
+    if HMAJOR>=21:
+        print("<TYPECASTER> TEMPFIX: Prepending python path with Typecaster libs (included fontTools override)")
+        sys.path.insert(0, str(TYPECASTER_PYTHON_INSTALL_PATH))
     try:
         from typecaster.font import Font # noqa: F401
         del Font
