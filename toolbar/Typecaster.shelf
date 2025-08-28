@@ -10,7 +10,7 @@
     <memberTool name="typecaster_convertFontNode"/>
   </toolshelf>
 
-  <tool name="typecaster_installerGUI" label="Open Installer" icon="PLASMA_App">
+  <tool name="typecaster_installerGUI" label="Installer GUI" icon="PLASMA_App">
     <toolSubmenu>Typecaster/scripts</toolSubmenu>
     <script scriptType="python"><![CDATA[from typecaster import installer
 installer.launch_gui()]]></script>
