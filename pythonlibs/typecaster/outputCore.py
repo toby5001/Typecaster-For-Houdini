@@ -1,6 +1,7 @@
 """
 
 Submodule for Typecaster's core.
+This contains the main functionality to bridge the gap between the python functionality and actually operating in Houdini
 There's basically no reason to use this submodule outside of the Typecaster::typecaster_font HDA.
 
 """
@@ -60,6 +61,71 @@ def get_tcf_from_fontinfo(node) -> tcf.Font:
         msg = f"""Font "{font_info[0]}" does not exist or failed to initialize!"""
         msg += " FontNotFoundException" + (f": {str(e)}" if str(e) else "")
         raise hou.NodeError(msg)
+
+
+def reflow_helpers() -> dict[str, list[int]]:
+    """Get the codepoints used for word breaking, as well as some additional cantidate points.
+
+    Returns:
+        dict[str, list[int]]: Dict of reflow codepoints, separated between standard spacing ids, and splitafters.
+    """
+    # TODO: Maybe it'd be a good idea to separate this along with the other font information that is used across Typecaster
+    _reflow_helpers = {}
+    # These dict key names are directly referenced in the Typecaster Font HDA so change them with extreme caution (JUST DON'T)
+    reflowhelpers_src = {
+    # These are the standard unicode characters for spacing, taken from https://en.wikipedia.org/wiki/Whitespace_character
+    '__spacing_ids':(
+        # ------------------------------------------------
+        # Unicode characters with property White_Space=yes
+        chr(0x0009), # Character Tabulation
+        chr(0x0020), # Space
+        # chr(0x00A0), # No-break space (NOBREAK)
+        chr(0x1680), # Ogham space mark
+        chr(0x2000), # En quad
+        chr(0x2001), # Em quad
+        chr(0x2002), # En space
+        chr(0x2003), # Em space
+        chr(0x2004), # Three-per-em space
+        chr(0x2005), # Four-per-Em space
+        chr(0x2006), # Six-per-Em space
+        # chr(0x2007), # Figure space (NOBREAK)
+        chr(0x2008), # Punctation space
+        chr(0x2009), # Thin space
+        chr(0x200A), # Hair space
+        # chr(0x202F), # Narrow No-break space (NOBREAK)
+        chr(0x205F), # Medium mathematical space
+        chr(0x3000), # Ideographic space
+        # ------------------------------------------------
+        # Related Unicode characters with property White_Space=no
+        chr(0x180E), # Mongolian vowel separator
+        chr(0x200B), # Zero width space
+        chr(0x200C), # Zero width non-joiner
+        chr(0x200D), # Zero width joiner
+        # chr(0x2060), # Word joiner (NOBREAK)
+        # chr(0xFEFF), # Zero width non-breaking space (NOBREAK)
+    ),
+    # These are common characters which are often safe spaces in a piece of text to insert a line break
+    '__splitafter_ids': ('-','=',':',';',',')
+    }
+    for name in reflowhelpers_src:
+        currentids = {}
+        charset = reflowhelpers_src[name]
+        for char in charset:
+            currentids[ord(char)] = True
+        _reflow_helpers[name] = list(currentids.keys())
+    return _reflow_helpers
+
+
+def output_reflow_helpers(geo:hou.Geometry):
+    """Output the helpful codepoints needed for word-breaking as int array detail attributes.
+
+    Args:
+        geo (hou.Geometry): Geostream to output to
+    """
+    rfh = reflow_helpers()
+    for name in rfh:
+        attrib_current:hou.Attrib = geo.addArrayAttrib(hou.attribType.Global, name, hou.attribData.Int)
+        geo.setGlobalAttribValue(attrib_current, rfh[name])
 
 
 def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry):
