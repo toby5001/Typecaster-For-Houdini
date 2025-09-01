@@ -41,6 +41,27 @@ from typecaster.bidi_segmentation import line_to_run_segments
 #     geo.setPointFloatAttribValues('gshift', tuple(pt_attribs['gshift']) )
 
 
+def get_tcf_from_fontinfo(node) -> tcf.Font:
+    """Get a typecaster Font object using the font_info parameter on the typecaster_Core node
+
+    Args:
+        node (hou.OpNode): typecaster_Core node
+
+    Raises:
+        hou.NodeError: Raised if the font can't be created
+
+    Returns:
+        tcf.Font: typecaster.Font object
+    """
+    font_info = eval(node.evalParm("font_info"))
+    try:
+        return tcf.Font.Cacheable(font_info[0], number=font_info[1])
+    except tcf.FontNotFoundException as e:
+        msg = f"""Font "{font_info[0]}" does not exist or failed to initialize!"""
+        msg += " FontNotFoundException" + (f": {str(e)}" if str(e) else "")
+        raise hou.NodeError(msg)
+
+
 def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry):
     """Main operation for taking a Typecaster font interface and outputting 
     both a series of glyph control points and a skeleton for layout and positioning.
@@ -119,14 +140,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     
     textparm = interfacenode.parm('text')
     src_text = textparm.eval() if textparm else ''
-    font_info = eval( node.evalParm("font_info") )
-
-    try:
-        typecasterfont = tcf.Font.Cacheable( font_info[0], number=font_info[1] )
-    except tcf.FontNotFoundException as e:
-        msg = f"""Font "{font_info[0]}" does not exist or failed to initialize!"""
-        msg += " FontNotFoundException" + (f": {str(e)}" if str(e) else "")
-        raise hou.NodeError(msg)
+    typecasterfont = get_tcf_from_fontinfo(node)
 
     fontgoggle = typecasterfont.font
     # ttfont:ttLib.TTFont = fontgoggle.ttFont
