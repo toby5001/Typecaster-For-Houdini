@@ -452,13 +452,13 @@ if __name__ == "__main__":
     elif standalone_mode == 'gui':
         print("<TYPECASTER> Using Installer GUI")
         try:
-            from PySide6 import QtWidgets, QtGui
-            from PySide6.QtCore import Qt
-            PS2 = False
+            from PySide6 import QtWidgets, QtGui # type: ignore
+            from PySide6.QtCore import Qt # type: ignore
+            PS6 = True
         except ModuleNotFoundError:
             from PySide2 import QtWidgets, QtGui
             from PySide2.QtCore import Qt
-            PS2 = True
+            PS6 = False
 
         class QuestionWindow(QtWidgets.QMessageBox):
             def __init__(self):
@@ -595,13 +595,13 @@ if __name__ == "__main__":
                 self.callback_update_method()
 
         app = QtWidgets.QApplication(sys.argv)
-        # app.setStyle('Windows')
+        app.setStyle('Fusion')
         window = QuestionWindow()
         window.show()
-        if PS2:
-            run = app.exec_()
-        else:
+        if PS6:
             run = app.exec()
+        else:
+            run = app.exec_()
         btn = window.clickedButton()
         if btn == window.button_update:
             window = UpdaterWindow()

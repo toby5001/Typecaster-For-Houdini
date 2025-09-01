@@ -15,11 +15,11 @@ from fontTools.ttLib import TTCollection
 try:
     from PySide6 import QtWidgets, QtGui
     from PySide6.QtCore import Qt
-    PS2 = False
+    PS6 = True
 except ModuleNotFoundError:
     from PySide2 import QtWidgets, QtGui
     from PySide2.QtCore import Qt
-    PS2 = True
+    PS6 = False
 from fnmatch import fnmatch
 
 
