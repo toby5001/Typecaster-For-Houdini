@@ -8,6 +8,7 @@
   <toolshelf name="Typecaster" label="Typecaster">
     <memberTool name="typecaster_installerGUI"/>
     <memberTool name="typecaster_convertFontNode"/>
+    <memberTool name="typecaster_fontSelectionUI"/>
   </toolshelf>
 
   <tool name="typecaster_installerGUI" label="Installer GUI" icon="PLASMA_App">
@@ -113,5 +114,17 @@ for node in hou.selectedNodes():
             
             nodename = f"tc_{node.name()}"
             tcnode.setName( nodename, unique_name=True)]]></script>
+  </tool>
+
+  <tool name="typecaster_fontSelectionUI" label="Font Selector" icon="PLASMA_App">
+    <script scriptType="python"><![CDATA[import hou
+
+selection = hou.selectedNodes()
+
+if len(selection)==1:
+    from typecaster.fontUI import FontSelector
+    FontSelector(hou.ui.mainQtWindow(), selection[0])
+else:
+    hou.ui.displayMessage("Please select exactly one node!", severity=hou.severityType.Warning)]]></script>
   </tool>
 </shelfDocument>
