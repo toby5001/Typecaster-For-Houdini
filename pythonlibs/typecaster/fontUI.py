@@ -13,8 +13,8 @@ from typecaster import fontFinder
 from typecaster import font as tcf
 from fontTools.ttLib import TTCollection
 try:
-    from PySide6 import QtWidgets, QtGui
-    from PySide6.QtCore import Qt
+    from PySide6 import QtWidgets, QtGui # type: ignore
+    from PySide6.QtCore import Qt # type: ignore
     PS6 = True
 except ModuleNotFoundError:
     from PySide2 import QtWidgets, QtGui
@@ -850,7 +850,7 @@ class FontSelector(QtWidgets.QDialog):
             self.fontnode = fontnode
         self.fontparm:hou.Parm = self.fontnode.parm(PARMNAMING["1.0"]["font"])
         if not self.fontparm:
-            raise Exception("Is this being run in the appropriate context?")
+            raise Exception("Is this being run in the appropriate context or node?")
         self.fontparminfo = interpret_font_parms(self.fontnode, read_collection_fontnumber=True)
 
         # fontfinder info
