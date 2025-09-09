@@ -1,6 +1,7 @@
 """
 
-Submodule for functionality related to updating and parsing the interface of Typecaster HDAs.
+Submodule for functionality related to updating and parsing the interface of Typecaster HDAs, along with standalone interfaces.
+Basically anything related to using interfaces to control Typecaster.
 
 """
 

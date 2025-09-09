@@ -1,6 +1,7 @@
 """
 
 Submodule for installing and updating Typecaster
+When run as a standalone program, this file can be used as either a CLI or GUI installer/updater.
 
 """
 
