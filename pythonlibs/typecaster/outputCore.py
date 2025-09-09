@@ -14,6 +14,7 @@ from pathops import Path as PathopsPath
 from typecaster import font as tcf
 from typecaster.houdiniPen import HoudiniCubicPen, HoudiniQuadraticPen
 from typecaster.bidi_segmentation import line_to_run_segments
+from typecaster.fontUI import ensure_compatible_name
 # import cProfile
 
 
@@ -308,11 +309,11 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     reprocess_for_glyphswap = tparm.eval() if tparm else False
     del tparm
 
-    # Below is for handling an extreme edgecase where incoming varaxes use parameter-incompatible naming.
-    # I'm not sure if there's any meaningful overhead from grabbing another node's python module,
-    # but this is the most robust way I can think of to ensure the naming scheme used is identical to
-    # when the parameters are created.
-    ensure_compatible_name = interfacenode.hdaModule().ensure_compatible_name
+    # # Below is for handling an extreme edgecase where incoming varaxes use parameter-incompatible naming.
+    # # I'm not sure if there's any meaningful overhead from grabbing another node's python module,
+    # # but this is the most robust way I can think of to ensure the naming scheme used is identical to
+    # # when the parameters are created.
+    # ensure_compatible_name = interfacenode.hdaModule().ensure_compatible_name
 
     # If the necessary inputs are used, configure for per-glyph variation
     variations = {}
