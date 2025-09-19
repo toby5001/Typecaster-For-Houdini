@@ -360,20 +360,25 @@ def __iterate_over_fontfiles__(found_fonts:list[str], search_op=None, source_tag
     Args:
         found_fonts (list[str]): List of font paths to operate on. This list currently is assumed to only contain valid paths.
     """
-    # TODO: Should there be error handling here? Or can we assume the incoming paths are valid fonts. 
     tags = {'search_op':search_op}
     if source_tag:
         tags.update({'source':source_tag})
     for f in found_fonts:
         p  = Path(f)
-        if p.suffix.lower() in COLLECTIONSUFFIXES:
-            # print( f"{p.name} is a collection!" )
-            collection = ttLib.TTCollection(p)
-            for number, ttfont in enumerate(collection.fonts):
-                __cache_individual_font__( ttfont, p, tags=tags, number=number)
-        else:
-            ttfont = ttLib.TTFont(p, fontNumber=0)
-            __cache_individual_font__( ttfont, p, tags=tags, number=0)
+        if p.exists():
+            # Existence check is needed since it looks like get_system_fonts_filename() will find nonexistent .TMP files related to Adobe Acrobat
+            # Example problematic file: C:\USERS\ANDREW\APPDATA\LOCAL\TEMP\ACROBAT_SBX\Z@RD818.TMP
+            try:
+                if p.suffix.lower() in COLLECTIONSUFFIXES:
+                    # print( f"{p.name} is a collection!" )
+                    collection = ttLib.TTCollection(p)
+                    for number, ttfont in enumerate(collection.fonts):
+                        __cache_individual_font__( ttfont, p, tags=tags, number=number)
+                else:
+                    ttfont = ttLib.TTFont(p, fontNumber=0)
+                    __cache_individual_font__( ttfont, p, tags=tags, number=0)
+            except ttLib.TTLibError:
+                pass
 
 
 def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, run_only_on_fontfile:bool=True):
