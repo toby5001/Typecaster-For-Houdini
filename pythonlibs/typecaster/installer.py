@@ -466,7 +466,7 @@ if __name__ == "__main__":
                 super().__init__()
                 self.setWindowTitle("Typecaster Standalone Installer")
                 self.setText("What would you like to do?")
-                self.setInformativeText("Please make sure that you don't have any currently running instances of Houdini before proceeding.")
+                self.setInformativeText("To avoid issues, please make sure that you don't have any currently running instances of Houdini before proceeding.")
                 self.button_update = self.addButton("Update Typecaster", QtWidgets.QMessageBox.ActionRole)
                 self.button_installdeps = self.addButton("Reinstall Dependencies", QtWidgets.QMessageBox.ActionRole)
                 self.button_close = self.addButton("Close", QtWidgets.QMessageBox.RejectRole)
