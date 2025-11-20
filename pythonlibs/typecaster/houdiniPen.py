@@ -62,7 +62,7 @@ class HoudiniBasePen():
         self.ptsset = []
 
     def endPath(self):
-        raise NotImplementedError("Unsupported move of endPath called. This should not happen is regular usage.")
+        raise NotImplementedError("Unsupported move of endPath called. This should not happen in regular usage.")
     
     def qCurveTo(self, *args):
         raise NotImplementedError("Unsupported move of qCurveTo called. Are you using the right curve type?")
