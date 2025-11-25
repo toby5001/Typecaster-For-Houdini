@@ -622,14 +622,15 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         Using glyphqueue generally works pretty well but in some cases I feel like the secondary marks
                         bind to the incorrect main glyph. That said this isn't consistent so it's likely a quirk of Playwrite
                         """
-                        run_standard_glyph = False
                         # msg = f"Unusual case for zero-length cluster staging. If you see this message and aren't the author, if possible please submit the font you were using which caused this so I can expand the functionality."
-                        # msg += f"\n(gname:{glyph_name}, gid:{ids[3]}, run_txt:{run_text}, glyph_idx:{glyph_idx})"
+                        # msg += f"\n(gname:{glyph_name}, gid:{ids[3]}, run_txt:{run_text}, glyph_idx:{glyph_idx}), gsz:{gsz}"
                         # raise NotImplementedError(msg)
                         # print(msg)
+                        if gsz[0] == 0:
+                            run_standard_glyph = False
+                            glyphqueue.append( ( gsz, ids, offset) )
                         # new_glyphpt_skel( linepoly, gsz, ids)
                         # new_glyphpt_skel_extension( gsz=gsz, ids=ids, offset=offset, target_glyphpt_skel=glyphpt_skel)
-                        glyphqueue.append( ( gsz, ids, offset) )
 
                 if run_standard_glyph:
                     if offset[0] != 0.0 or offset[1] != 0.0:
