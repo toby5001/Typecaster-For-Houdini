@@ -285,17 +285,20 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     targetfolder = ptg.find(featfolder_name)
     if not targetfolder:
         targetfolder = ptg.find(featfolder_name+'2')
-    features = { parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in targetfolder.parmTemplates() }
+    features = { parm.name() : interfacenode.parm(parm.name()).evalAsInt() for parm in targetfolder.parmTemplates() }
 
     targetfolder = ptg.find(ssfolder_name)
     if not targetfolder:
         targetfolder = ptg.find(ssfolder_name+'2')
-    features.update({ parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in targetfolder.parmTemplates() })
+    features.update({ parm.name() : interfacenode.parm(parm.name()).evalAsInt() for parm in targetfolder.parmTemplates() })
 
     targetfolder = ptg.find(cvfolder_name)
     if not targetfolder:
         targetfolder = ptg.find(cvfolder_name+'2')
-    features.update({ parm.name() : interfacenode.parm(parm.name()).eval() == 1 for parm in targetfolder.parmTemplates() })
+    features.update({ parm.name() : interfacenode.parm(parm.name()).evalAsInt() for parm in targetfolder.parmTemplates() })
+    # While incredibly uncommon, the font family Monaspace is an example of allowing
+    # for values greater than one for it's character variants. Even though these
+    # parameters are created as toggles, they can/should also be interpeted as integers.
 
     # Kerning causes some complexities with my optimizations for per-glyph variation, so we can take some shortcuts if it's disabled.
     featuresGPOS = fontgoggle.featuresGPOS
