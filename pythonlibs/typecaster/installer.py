@@ -607,7 +607,10 @@ if __name__ == "__main__":
         if btn == window.button_update:
             window = UpdaterWindow()
             window.show()
-            run = app.exec_()
+            if PS6:
+                run = app.exec()
+            else:
+                run = app.exec_()
         elif btn == window.button_installdeps:
             QtWidgets.QMessageBox.warning(
                 window,
