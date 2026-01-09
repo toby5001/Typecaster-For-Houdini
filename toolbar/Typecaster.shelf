@@ -9,6 +9,7 @@
     <memberTool name="typecaster_installerGUI"/>
     <memberTool name="typecaster_convertFontNode"/>
     <memberTool name="typecaster_fontSelectionUI"/>
+    <memberTool name="typecaster_localizeFontFiles"/>
   </toolshelf>
 
   <tool name="typecaster_installerGUI" label="Installer GUI" icon="PLASMA_App">
@@ -126,5 +127,109 @@ if len(selection)==1:
     FontSelector(hou.ui.mainQtWindow(), selection[0])
 else:
     hou.ui.displayMessage("Please select exactly one node!", severity=hou.severityType.Warning)]]></script>
+  </tool>
+
+  <tool name="typecaster_localizeFontFiles" label="Localize Fonts Used" icon="PLASMA_App">
+    <script scriptType="python"><![CDATA[import hou
+from typecaster.fontUI import interpret_font_parms, swap_font_parms, PARMNAMING
+from pathlib import Path
+import shutil
+import hashlib
+import io
+import json
+
+if hou.isUIAvailable():
+    confirmed = hou.ui.displayConfirmation(text="Please confirm before running this operation",
+                                        severity=hou.severityType.Warning,
+                                        help="This operation will attempt to modify ALL Typecaster Font nodes\nin the project file to use a common font path local to the project.\nReverting back to font names can be challenging.",)
+else:
+    # If this script is being run in a non-graphical context, we can assume the user knows what they're doing and don't need confirmation.
+    confirmed = True
+
+if confirmed:
+    foundnodes = hou.nodeType(hou.sopNodeTypeCategory(), "Typecaster::typecaster_font::1.0")
+
+    immovable_fonts = {}
+    fonts_to_move = {}
+
+    projectvar = '\$HIP'
+    projectfontfolderstring = f"{projectvar}/font"
+    projectfontfolder = Path(hou.text.expandString(projectfontfolderstring)).resolve()
+    projectfontfolder.mkdir(exist_ok=True)
+
+
+    def get_file_hash(file: Path, algorithm="sha256"):
+        """Basice file hashing function using pathlib path objects."""
+        h = hashlib.new(algorithm)
+
+        # Use the interpreter's default buffer size for efficient reading
+        chunk_size = io.DEFAULT_BUFFER_SIZE 
+
+        with file.open('rb') as f:
+            while chunk := f.read(chunk_size):
+                h.update(chunk)
+        return h.hexdigest()
+
+    stats = {'bypassed':[],'modified':[],'already_local':[],'invalid':[]}
+
+    with hou.undos.group("Localize Typecaster Fonts to project"):
+        for node in foundnodes.instances():
+            node: hou.OpNode
+            finfo = interpret_font_parms(node)
+            if finfo.validfont:
+                # Only progress if the font being specified on the current node is valid
+                if finfo.info and (sourcetag := finfo.info.tags.get('source','') )in ('Adobe'):
+                    # Current node was found to be using an adobe font. Probably best not to automate the collection of them.
+                    immovable_fonts.setdefault(sourcetag,{}).setdefault(finfo.name, []).append(node.path())
+                    stats['bypassed'].append(node.path())
+                else:
+                    if not finfo.is_filepath:
+                        # If not already a filepath, swap to one
+                        swap_font_parms(node,2)
+
+                    else:
+                        if finfo.path.parent.resolve() == projectfontfolder:
+                            # If the font is already a filepath and is in the project font folder,
+                            # it has already been localized and doesn't need to be touched.
+                            stats['already_local'].append(node.path())
+                            continue
+
+                    # By this point, we should only be operating on font nodes which are using distinct paths which weren't already pointed to the fonts folder
+                    font_in_folder = projectfontfolder / finfo.path.name
+
+                    if not font_in_folder.exists():
+                        fonts_to_move[font_in_folder] = finfo.path
+
+                    elif get_file_hash(finfo.path) != get_file_hash(font_in_folder):
+                        # This gets triggered if there is a font with the correct name in the project foler,
+                        # but it's hash doesn't match the current node's font file (EXTREMELY unlikely)
+                        print(f"<TYPECASTER WARNING> The file [{finfo.path}] doesn't have the same contents as [{font_in_folder}]. An automatic fix will be used, but this is likely indicative of a corrupted font file  or bug which should be investigated.")
+                        font_in_folder = projectfontfolder / f"{finfo.path.stem}_{node.name()}{finfo.path.suffix}"
+                        fonts_to_move[font_in_folder] = finfo.path
+
+                    pathparm:hou.Parm = node.parm(PARMNAMING['1.0']['font'])
+                    if pathparm:
+                        newpathstring = f"{projectfontfolderstring}/{font_in_folder.relative_to(projectfontfolder)}"
+                        pathparm.set(newpathstring)
+
+                    stats['modified'].append(node.path())
+            else:
+                stats['bypassed'].append(node.path())
+
+    # Move the designated fonts to the local folder
+    for destination in fonts_to_move:
+        source = fonts_to_move[destination]
+        shutil.copy(source, destination)
+
+    log = ("Ran Typecaster localization script with the following results:"
+        f"\n    Nodes modified:      {len(stats['modified'])}"
+        f"\n    Nodes already local: {len(stats['already_local'])}"
+        f"\n    Nodes bypassed:      {len(stats['bypassed'])}")
+
+    if hou.isUIAvailable():
+        hou.ui.displayMessage(log,title='Typecaster',details_label='Show immovable font info',details=json.dumps(immovable_fonts, indent=4) if immovable_fonts else None)
+    else:
+        print(log)
+]]></script>
   </tool>
 </shelfDocument>
