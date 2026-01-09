@@ -37,7 +37,7 @@
             {
                 "path": "$HFS/houdini/fonts",
                 "source_tag": "$HFS",
-                "priority": 2,
+                "priority": 100,
                 "process_type1_fonts": 1
             },
             {
@@ -47,11 +47,13 @@
             },
             {
                 "path": "$HIP/fonts",
-                "source_tag": "$HIP"
+                "source_tag": "$HIP",
+                "priority": 3
             },
             {
                 "path": "$JOB/fonts",
-                "source_tag": "$JOB"
+                "source_tag": "$JOB",
+                "priority": 2
             }
         ],
         "windows": [],
