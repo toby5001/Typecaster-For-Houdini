@@ -152,8 +152,8 @@ if confirmed:
     immovable_fonts = {}
     fonts_to_move = {}
 
-    projectvar = '\$HIP'
-    projectfontfolderstring = f"{projectvar}/font"
+    projectvar = '$HIP'
+    projectfontfolderstring = f"{projectvar}/fonts"
     projectfontfolder = Path(hou.text.expandString(projectfontfolderstring)).resolve()
     projectfontfolder.mkdir(exist_ok=True)
 
