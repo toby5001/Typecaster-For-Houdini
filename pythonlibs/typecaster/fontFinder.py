@@ -400,16 +400,16 @@ def _IterDir( searchpath:Path, function, depth:int=0, max_depth:int=3, run_only_
 
     if searchpath.is_dir():
         for p in searchpath.iterdir():
-            if p.is_dir() and depth < max_depth and p.suffix != ".ufo":
+            if p.is_dir() and depth < max_depth and p.suffix.lower() != ".ufo":
                 try:
                     _IterDir(p, function=function, depth=depth+1, max_depth=max_depth, run_only_on_fontfile=run_only_on_fontfile)
                 except PermissionError:
                     pass
             else:
-                if run_only_on_fontfile is False or p.suffix in FONTFILES:
+                if run_only_on_fontfile is False or p.suffix.lower() in FONTFILES:
                     function(p)
     else:
-        if run_only_on_fontfile is False or searchpath.suffix in FONTFILES:
+        if run_only_on_fontfile is False or searchpath.suffix.lower() in FONTFILES:
             function(searchpath)
 
 
