@@ -276,7 +276,7 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
 
     do_cache = False
     if isinstance(font, ttLib.TTFont):
-        if LIVETYPE_LOCATION and path.is_relative_to(LIVETYPE_LOCATION) and tags.get('source',None) is None:
+        if LIVETYPE_LOCATION and tags.get('source',None) != 'Adobe' and path.is_relative_to(LIVETYPE_LOCATION):
             tags['source'] = 'Adobe'
 
         fvar = font.get("fvar")
