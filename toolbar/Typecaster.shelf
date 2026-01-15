@@ -137,6 +137,7 @@ import shutil
 import hashlib
 import io
 import json
+import fnmatch
 
 if hou.isUIAvailable():
     confirmed = hou.ui.displayConfirmation(text="Please confirm before running this operation",
@@ -147,7 +148,15 @@ else:
     confirmed = True
 
 if confirmed:
-    foundnodes = hou.nodeType(hou.sopNodeTypeCategory(), "Typecaster::typecaster_font::1.0")
+    
+    foundtypes = []
+    pattern = "Typecaster::typecaster_font::*"
+    category = hou.sopNodeTypeCategory()
+    for node_type_name, node_type in category.nodeTypes().items():
+        if fnmatch.fnmatch(node_type_name, pattern):
+            foundtypes.append(hou.nodeType(category, node_type_name))
+    
+    # foundnodes = hou.nodeType(hou.sopNodeTypeCategory(), "Typecaster::typecaster_font::1.0")
 
     immovable_fonts = {}
     fonts_to_move = {}
@@ -173,48 +182,49 @@ if confirmed:
     stats = {'bypassed':[],'modified':[],'already_local':[],'invalid':[]}
 
     with hou.undos.group("Localize Typecaster Fonts to project"):
-        for node in foundnodes.instances():
-            node: hou.OpNode
-            finfo = interpret_font_parms(node)
-            if finfo.validfont:
-                # Only progress if the font being specified on the current node is valid
-                if finfo.info and (sourcetag := finfo.info.tags.get('source','') )in ('Adobe'):
-                    # Current node was found to be using an adobe font. Probably best not to automate the collection of them.
-                    immovable_fonts.setdefault(sourcetag,{}).setdefault(finfo.name, []).append(node.path())
-                    stats['bypassed'].append(node.path())
-                else:
-                    if not finfo.is_filepath:
-                        # If not already a filepath, swap to one
-                        swap_font_parms(node,2)
-
+        for foundtype in foundtypes:
+            for node in foundtype.instances():
+                node: hou.OpNode
+                finfo = interpret_font_parms(node)
+                if finfo.validfont:
+                    # Only progress if the font being specified on the current node is valid
+                    if finfo.info and (sourcetag := finfo.info.tags.get('source','') )in ('Adobe'):
+                        # Current node was found to be using an adobe font. Probably best not to automate the collection of them.
+                        immovable_fonts.setdefault(sourcetag,{}).setdefault(finfo.name, []).append(node.path())
+                        stats['bypassed'].append(node.path())
                     else:
-                        if finfo.path.parent.resolve() == projectfontfolder:
-                            # If the font is already a filepath and is in the project font folder,
-                            # it has already been localized and doesn't need to be touched.
-                            stats['already_local'].append(node.path())
-                            continue
+                        if not finfo.is_filepath:
+                            # If not already a filepath, swap to one
+                            swap_font_parms(node,2)
 
-                    # By this point, we should only be operating on font nodes which are using distinct paths which weren't already pointed to the fonts folder
-                    font_in_folder = projectfontfolder / finfo.path.name
+                        else:
+                            if finfo.path.parent.resolve() == projectfontfolder:
+                                # If the font is already a filepath and is in the project font folder,
+                                # it has already been localized and doesn't need to be touched.
+                                stats['already_local'].append(node.path())
+                                continue
 
-                    if not font_in_folder.exists():
-                        fonts_to_move[font_in_folder] = finfo.path
+                        # By this point, we should only be operating on font nodes which are using distinct paths which weren't already pointed to the fonts folder
+                        font_in_folder = projectfontfolder / finfo.path.name
 
-                    elif get_file_hash(finfo.path) != get_file_hash(font_in_folder):
-                        # This gets triggered if there is a font with the correct name in the project foler,
-                        # but it's hash doesn't match the current node's font file (EXTREMELY unlikely)
-                        print(f"<TYPECASTER WARNING> The file [{finfo.path}] doesn't have the same contents as [{font_in_folder}]. An automatic fix will be used, but this is likely indicative of a corrupted font file  or bug which should be investigated.")
-                        font_in_folder = projectfontfolder / f"{finfo.path.stem}_{node.name()}{finfo.path.suffix}"
-                        fonts_to_move[font_in_folder] = finfo.path
+                        if not font_in_folder.exists():
+                            fonts_to_move[font_in_folder] = finfo.path
 
-                    pathparm:hou.Parm = node.parm(PARMNAMING['1.0']['font'])
-                    if pathparm:
-                        newpathstring = f"{projectfontfolderstring}/{font_in_folder.relative_to(projectfontfolder)}"
-                        pathparm.set(newpathstring)
+                        elif get_file_hash(finfo.path) != get_file_hash(font_in_folder):
+                            # This gets triggered if there is a font with the correct name in the project foler,
+                            # but it's hash doesn't match the current node's font file (EXTREMELY unlikely)
+                            print(f"<TYPECASTER WARNING> The file [{finfo.path}] doesn't have the same contents as [{font_in_folder}]. An automatic fix will be used, but this is likely indicative of a corrupted font file  or bug which should be investigated.")
+                            font_in_folder = projectfontfolder / f"{finfo.path.stem}_{node.name()}{finfo.path.suffix}"
+                            fonts_to_move[font_in_folder] = finfo.path
 
-                    stats['modified'].append(node.path())
-            else:
-                stats['bypassed'].append(node.path())
+                        pathparm:hou.Parm = node.parm(PARMNAMING['1.0']['font'])
+                        if pathparm:
+                            newpathstring = f"{projectfontfolderstring}/{font_in_folder.relative_to(projectfontfolder)}"
+                            pathparm.set(newpathstring)
+
+                        stats['modified'].append(node.path())
+                else:
+                    stats['bypassed'].append(node.path())
 
     # Move the designated fonts to the local folder
     for destination in fonts_to_move:
