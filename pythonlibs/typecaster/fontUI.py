@@ -565,8 +565,10 @@ def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"
         fontnumber = fontinfo.number
     if fontparmval:
         fontparm = node.parm(parmnames['font'])
-        fontparm.set(fontparmval)
-        node.hdaModule().update_font_parms(node=node, newnumber=fontnumber)
+        # Contain all operations within the same undos group
+        with hou.undos.group("Typecaster update selected font"):
+            fontparm.set(fontparmval)
+            node.hdaModule().update_font_parms(node=node, newnumber=fontnumber)
 
 
 def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
@@ -589,8 +591,10 @@ def set_from_font_family(node:hou.OpNode=None, parm_naming_version="1.0"):
                 font_numberparm.set(font_numberparm.menuItems().index(str(menuval[1])))
             except ValueError:
                 pass
-        familyparm.set('')
-        node.hdaModule().update_font_parms(triggersrc='family')
+        # Contain all operations within the same undos group
+        with hou.undos.group("Typecaster update selected font"):
+            familyparm.set('')
+            node.hdaModule().update_font_parms(triggersrc='family')
         # familyparm.pressButton()
 
 
@@ -1139,8 +1143,10 @@ class FontSelector(QtWidgets.QDialog):
                         else:
                             self.fontparm.set(fontname)
                     else:
-                        self.fontparm.set(fontname)
-                        update_font_parms(self.fontnode, newnumber=info.number)
+                        # Contain all operations within the same undos group
+                        with hou.undos.group("Typecaster update selected font"):
+                            self.fontparm.set(fontname)
+                            update_font_parms(self.fontnode, newnumber=info.number)
 
     def apply_close(self):
         self.apply()
