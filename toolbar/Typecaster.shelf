@@ -213,7 +213,7 @@ if confirmed:
                         elif get_file_hash(finfo.path) != get_file_hash(font_in_folder):
                             # This gets triggered if there is a font with the correct name in the project foler,
                             # but it's hash doesn't match the current node's font file (EXTREMELY unlikely)
-                            print(f"<TYPECASTER WARNING> The file [{finfo.path}] doesn't have the same contents as [{font_in_folder}]. An automatic fix will be used, but this is likely indicative of a corrupted font file  or bug which should be investigated.")
+                            print(f"<TYPECASTER WARNING> The file [{finfo.path}] doesn't have the same contents as [{font_in_folder}]. An automatic fix will be used, but this is likely indicative of a corrupted font file or bug which should be investigated.")
                             font_in_folder = projectfontfolder / f"{finfo.path.stem}_{node.name()}{finfo.path.suffix}"
                             fonts_to_move[font_in_folder] = finfo.path
 
@@ -221,6 +221,10 @@ if confirmed:
                         if pathparm:
                             newpathstring = f"{projectfontfolderstring}/{font_in_folder.relative_to(projectfontfolder)}"
                             pathparm.set(newpathstring)
+                            # Fully reload parms once the new path string is set. If this script is working properly,
+                            # no important parameters should be changed. That said, parameters like Fonts In Family might no longer work as expected.
+                            if p:= node.parm('reload_parms'):
+                                p.pressButton()
 
                         stats['modified'].append(node.path())
                 else:
