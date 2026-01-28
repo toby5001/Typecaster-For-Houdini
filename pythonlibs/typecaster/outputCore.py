@@ -577,7 +577,17 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 dictstring = f"glyph{glyph.gid}"+str(sorted(glyph_variations.items()))
                 glyph_hash = hash(dictstring)
                 run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
-                ids = [ line_id, stable_idx, true_idx, glyph.gid, source_idx, codepoint_lazy, line_idx, glyph_hash, run_id]
+                ids = [
+                    line_id,
+                    stable_idx,
+                    true_idx,
+                    glyph.gid,
+                    source_idx,
+                    codepoint_lazy,
+                    line_idx,
+                    glyph_hash,
+                    run_id,
+                ]
 
                 # Check if the glyph has already been created, and mark it as existing if so.
                 if glyph_hash in unique_glyphs:
