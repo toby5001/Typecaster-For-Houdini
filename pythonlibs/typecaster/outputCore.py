@@ -15,6 +15,9 @@ from typecaster import font as tcf
 from typecaster.houdiniPen import HoudiniCubicPen, HoudiniQuadraticPen
 from typecaster.bidi_segmentation import line_to_run_segments
 from typecaster.fontUI import ensure_compatible_name
+import uharfbuzz as hb
+
+GFLAG_UNSAFE_TO_BREAK = hb.GlyphFlags.UNSAFE_TO_BREAK
 # import cProfile
 
 
@@ -571,12 +574,15 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 run_id
                     The ID for the current text run. In a standard LTR multiline string, this will be the same as line_id, but in the case of
                     bidirectional text, it will be based off of individual runs, taking into account line directions
+                unsafe_to_break
+                    The result of the bitmask for the harfbuzz glyph info flag UNSAFE_TO_BREAK
                 """
                 codepoint_lazy = ord(run_text[glyph_cluster])
                 source_idx = run_start_full+glyph_cluster
                 dictstring = f"glyph{glyph.gid}"+str(sorted(glyph_variations.items()))
                 glyph_hash = hash(dictstring)
                 run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
+                unsafe_to_break = int(glyph.flags & GFLAG_UNSAFE_TO_BREAK == 1)
                 ids = [
                     line_id,
                     stable_idx,
@@ -587,6 +593,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                     line_idx,
                     glyph_hash,
                     run_id,
+                    unsafe_to_break,
                 ]
 
                 # Check if the glyph has already been created, and mark it as existing if so.

@@ -11,7 +11,7 @@ CLUSTER_LEVEL = hb.BufferClusterLevel.MONOTONE_CHARACTERS
 
 class GlyphInfo:
 
-    def __init__(self, gid, name, cluster, dx, dy, ax, ay):
+    def __init__(self, gid, name, cluster, dx, dy, ax, ay, flags=None):
         self.gid = gid
         self.name = name
         self.cluster = cluster
@@ -19,6 +19,7 @@ class GlyphInfo:
         self.dy = dy
         self.ax = ax
         self.ay = ay
+        self.flags = flags
 
     def __repr__(self):
         args = (f"{a}={repr(getattr(self, a))}"
@@ -170,6 +171,7 @@ class HBShape:
             self.font.funcs = self._funcs
 
         buf = hb.Buffer.create()
+        # buf.flags = buf.flags | hb.BufferFlags.PRESERVE_DEFAULT_IGNORABLES
         buf.add_str(str(text))  # add_str() does not accept str subclasses
         buf.guess_segment_properties()
 
@@ -187,7 +189,7 @@ class HBShape:
         glyphOrder = self.glyphOrder
         infos = []
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-            infos.append(GlyphInfo(info.codepoint, glyphOrder[info.codepoint], info.cluster, *pos.position))
+            infos.append(GlyphInfo(info.codepoint, glyphOrder[info.codepoint], info.cluster, *pos.position, info.flags))
 
         return infos
 
