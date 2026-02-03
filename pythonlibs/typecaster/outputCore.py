@@ -20,6 +20,15 @@ import uharfbuzz as hb
 GFLAG_UNSAFE_TO_BREAK = hb.GlyphFlags.UNSAFE_TO_BREAK
 # import cProfile
 
+CHARS_WHITESPACE_NO = (
+    # Related Unicode characters with property White_Space=no
+    chr(0x180E), # Mongolian vowel separator
+    chr(0x200B), # Zero width space
+    chr(0x200C), # Zero width non-joiner
+    chr(0x200D), # Zero width joiner
+    chr(0x2060), # Word joiner (NOBREAK)
+    chr(0xFEFF), # Zero width non-breaking space (NOBREAK)
+)
 
 # pt_attribs = {'skeltype' : [], 
 #               'gsz' : [],
@@ -210,6 +219,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     
     textparm = interfacenode.parm('text')
     src_text = textparm.eval() if textparm else ''
+    src_text_stripped = ''.join(c for c in src_text if c not in CHARS_WHITESPACE_NO)
     typecasterfont = get_tcf_from_fontinfo(node)
 
     fontgoggle = typecasterfont.font
