@@ -978,7 +978,10 @@ class FontSelector(QtWidgets.QDialog):
 
         # Set as path toggle
         self.set_as_path_widget = QtWidgets.QCheckBox('Set as path')
-        use_path = bool(self.fontparminfo.is_filepath and self.fontparminfo.info)
+        if self.fontparm.isAtDefault(compare_temporary_defaults=False):
+            use_path = False
+        else:
+            use_path = bool(self.fontparminfo.is_filepath and self.fontparminfo.info)
         self.set_as_path_widget.setChecked(use_path)
         main_layout.addWidget(self.set_as_path_widget)
         self.set_as_path_widget.setWhatsThis('When enabled, apply the selected font as an actual path. When disabled, use the font name.')
