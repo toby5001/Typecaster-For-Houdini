@@ -497,6 +497,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 glyph_already_exists = False
                 ax_nokern = None
                 glyph_variations = variations
+                unsafe_to_break = int(glyph.flags & GFLAG_UNSAFE_TO_BREAK == 1)
                 if varying_per_glyph:
                     # Set the per-glyph variations
                     glyph_variations = variations.copy()
@@ -592,7 +593,6 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 dictstring = f"glyph{glyph.gid}"+str(sorted(glyph_variations.items()))
                 glyph_hash = hash(dictstring)
                 run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
-                unsafe_to_break = int(glyph.flags & GFLAG_UNSAFE_TO_BREAK == 1)
                 ids = [
                     line_id,
                     stable_idx,
