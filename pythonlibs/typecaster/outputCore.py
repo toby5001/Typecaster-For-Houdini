@@ -325,6 +325,10 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     reprocess_for_glyphswap = tparm.eval() if tparm else False
     del tparm
 
+    tparm:hou.Parm = interfacenode.parm('reshape_entire_run_during_varying')
+    reshape_entire_run_for_varying = tparm.eval() if tparm else False
+    del tparm
+
     # # Below is for handling an extreme edgecase where incoming varaxes use parameter-incompatible naming.
     # # I'm not sure if there's any meaningful overhead from grabbing another node's python module,
     # # but this is the most robust way I can think of to ensure the naming scheme used is identical to
@@ -531,9 +535,11 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         name and the next glyph's name.
                         Additionally, if it were possible to obtain a list of existing kern pairs in the font this could also be used to accelerate everything.
                         """
-                        minimal_text_approx = run_text[glyph_cluster:glyph_cluster+clustersize+1]
-                        reglyph = fontgoggle.shaper.shape( minimal_text_approx, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[0]
-                        # reglyph = fontgoggle.shaper.shape( run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
+                        if reshape_entire_run_for_varying:
+                            reglyph = fontgoggle.shaper.shape( run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
+                        else:
+                            minimal_text_approx = run_text[glyph_cluster:glyph_cluster+clustersize+1]
+                            reglyph = fontgoggle.shaper.shape( minimal_text_approx, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[0]
 
                         # Check if the glyph created from the subset of the current line actually is the same as what harfbuzz did for the full line. This should avoid incorrect glyphs being used for complex clusters.
                         if reglyph.name == glyph.name:
