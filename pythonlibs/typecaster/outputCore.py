@@ -638,7 +638,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         # If the current glyph_cluster is the same as the next, assume that it's (for example) an additional element like dots above and below in Arabic
                         run_standard_glyph = False
                         # It's likely possible to slightly optimize things by explicitly declaring things like direction and language, since they should be known
-                        reglyph = fontgoggle.shaper.shape(run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
+                        # reglyph = fontgoggle.shaper.shape(run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
                         glyphqueue.append( ( gsz, ids, offset) )
                 else:
                     if glyph_cluster == glyph_cluster_last:
