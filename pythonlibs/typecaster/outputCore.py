@@ -241,14 +241,9 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     grp_skel = geo.createPointGroup('skeleton')
 
     # Try and get the vertical height of the given glyph, and if there isn't one assume that
-    # we're working with a standard Latin font and get the sCapHeight from the OS/2 table
+    # we're working with a standard Latin font and get the general glyph height
     vmtx = fontgoggle.ttFont.get('vmtx')
-    os2 = fontgoggle.ttFont.get('OS/2')
-    if os2 is None:
-        raise NotImplementedError("It looks like some fonts don't always use OS/2. Is there a fallback besides a default value?")
-    sCapHeight = os2.sCapHeight if hasattr(os2, "sCapHeight") else 0
-    if sCapHeight == 0:
-        sCapHeight = os2.sTypoAscender if hasattr(os2, "sTypoAscender") else 750
+    general_glyph_height = typecasterfont.general_glyph_height
 
     # Set the overall scale of each glyph to be applied in Houdini, to ensure general sizing is consistent between fonts.
     upem = fontgoggle.unitsPerEm
@@ -619,17 +614,17 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 else:
                     unique_glyphs[glyph_hash] = 1
 
-                # If there is a vertical metrics table, use that for the y size, rather than the sCapHeight.
+                # If there is a vertical metrics table, use that for the y size, rather than the general glyph height.
                 # this is mainly found in CJK and similar language fonts.
 
                 if vmtx:
                     gsz = [float(ax), float(vmtx.metrics.get(glyph_name,0)[0])]
                     if gsz[1] == 0:
-                        gsz[1] = float(sCapHeight)
+                        gsz[1] = float(general_glyph_height)
                 else:
-                    gsz = [float(ax), float(sCapHeight)]
+                    gsz = [float(ax), float(general_glyph_height)]
 
-                # This condition is now caught in the vmtx condition above by falling back to the sCapHeight value. This might cause issues with vertical scripts.
+                # This condition is now caught in the vmtx condition above by falling back to the general glyph height value. This might cause issues with vertical scripts.
                 # if gsz[1] == 0:
                 #     print(f"---------- NOT SUPPOSED TO HAPPEN: The current glyph's height is 0 ({glyph_name} with ({gsz}))--------------")
 

@@ -12,6 +12,7 @@ from typecaster.fontFinder import path_to_name_mappings, T1FONTFILES
 from fontgoggles import font as fgfont
 from fontTools.ttLib import TTLibError
 from pathlib import Path
+from functools import cached_property
 
 
 class FontNotFoundException(Exception):
@@ -138,6 +139,37 @@ class Font:
             return sz
         else:
             return self.font.unitsPerEm
+
+    @cached_property
+    def general_glyph_height(self) -> int:
+        """This property is used to create the general vertical bounding box for a glyph,
+        which is currently used for vertical block alignment and glyph instancing point 
+        locations (when not botom left). Since this information is very inconsistently 
+        defined among fonts, it might be better to just calculate the bounding box of 
+        each individual glyph.
+
+        Returns:
+            int: General glyph height
+        """
+        font = self.font.ttFont
+        ascender = 0
+        if os2 := font.get('OS/2'):
+            ascender = os2.sCapHeight if hasattr(os2, "sCapHeight") else 0
+             # if ascender == 0:
+        #     # if cmap := font.getBestCmap():
+        #     #     gname = cmap.get(ord("H"))
+        #     #     hmtx = font.get('hmtx')
+        #     #     if hmtx and gname:
+        #     #         ascender = hmtx.metrics.get(gname,0)[0]
+            if ascender == 0:
+                ascender = os2.sTypoAscender if hasattr(os2, "sTypoAscender") else 0
+        if ascender == 0:
+            if hhea := font.get('hhea'):
+                #     # raise NotImplementedError("It looks like some fonts don't always use OS/2. Is there a fallback besides a default value?")
+                ascender = hhea.ascender if hasattr(hhea, "ascender") else 0
+        if ascender == 0:
+            ascender = 750
+        return ascender
 
     def get_bezier_order(self):
         # Set bezier order either from the sfntVersion or more often the font file's suffix
