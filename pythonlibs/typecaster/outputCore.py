@@ -255,6 +255,10 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     attrib_linespacing = geo.addAttrib(hou.attribType.Global, "_lineSpacing", 1., create_local_variable=False)
     geo.setGlobalAttribValue(attrib_linespacing, (linespace*glyphscale)/1000)
 
+    # Flag for if the current text has any glyphextension skeleton types. Useful for downstream optimization
+    has_glyphextension = False
+    attrib_has_glyphextension = geo.addAttrib(hou.attribType.Global, "__has_glyphextension", 0, create_local_variable=False)
+
     # Find all the feature folders and get the value of the parameters within
     ptg = interfacenode.parmTemplateGroup()
     featfolder_name = "general_features"
@@ -671,6 +675,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         # run. This doesn't have any effect on the various idx values since they are conserved, but it allows for a
                         # more correct rig heirarchy.
                         for (lastdata) in glyphqueue:
+                            has_glyphextension = True
                             new_glyphpt_skel_extension( gsz=lastdata[0], ids=lastdata[1], offset=lastdata[2], target_glyphpt_skel=glyphpt_skel)
                         glyphqueue = []
 
@@ -726,6 +731,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
         # For each new line, increment stable_idx by 1
         stable_idx += 1
     
+    geo.setGlobalAttribValue(attrib_has_glyphextension, has_glyphextension)
     # profiler.disable()
     # import pstats
     # pstats.Stats(profiler).sort_stats('ncalls').print_stats()
