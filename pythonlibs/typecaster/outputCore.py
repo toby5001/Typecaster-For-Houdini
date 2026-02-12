@@ -70,9 +70,9 @@ def get_tcf_from_fontinfo(node) -> tcf.Font:
     font_info = eval(node.evalParm("font_info"))
     try:
         return tcf.Font.Cacheable(font_info[0], number=font_info[1])
-    except tcf.FontNotFoundException as e:
+    except tcf.FontInitFailure as e:
         msg = f"""Font "{font_info[0]}" does not exist or failed to initialize!"""
-        msg += " FontNotFoundException" + (f": {str(e)}" if str(e) else "")
+        msg += f"\n{e.__class__.__name__}" + (f": {str(e)}" if str(e) else "")
         raise hou.NodeError(msg)
 
 

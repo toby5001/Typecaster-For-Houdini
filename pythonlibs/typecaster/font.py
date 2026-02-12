@@ -15,7 +15,12 @@ from pathlib import Path
 from functools import cached_property
 
 
-class FontNotFoundException(Exception):
+class FontInitFailure(Exception):
+    """Generic exception for when a font is unable to be initialized."""
+    pass
+
+
+class FontNotFoundException(FontInitFailure):
     pass
 
 
@@ -35,9 +40,9 @@ def getOpener(fontPath: Path, openerKey=None):
             if path_to_name_mappings(fontPath):
                 openerKey = "otf"
         if openerKey is None:
-            raise FontNotFoundException
+            raise FontInitFailure("Unexpected file type!")
     elif openerKey not in fgfont.fontOpeners:
-        raise FontNotFoundException
+        raise FontInitFailure("Unexpected file type!")
     openerSpec = fgfont.fontOpeners[openerKey][1]
     moduleName, className = openerSpec.rsplit(".", 1)
     module = import_module(moduleName)
@@ -98,7 +103,7 @@ class Font:
                 self.font.load(sys.stderr.write)
                 self._loaded = True
             except TTLibError:
-                raise FontNotFoundException
+                raise FontInitFailure("Unexpected TTLibError! Is this file valid?")
             return self
 
     def get_best_line_spacing(self) -> int:
@@ -379,4 +384,4 @@ def convert_t1_to_otf(input_path: Path):
         # Catch all errors when running the conversion to prevent surfacing a python error to the user
         # There are so many ways that this operation can go wrong that it's better to just handle all
         # exceptions rather than catch specific ones.
-        raise FontNotFoundException("Failed to convert T1 font.")
+        raise FontInitFailure("Failed to convert T1 font.")

@@ -238,7 +238,7 @@ def get_varaxes_vexops(font_info_string:str):
     try:
         fnt = tcf.Font.Cacheable(font_info_min[0],font_info_min[1])
         variation_axes = fnt.font.axes
-    except tcf.FontNotFoundException:
+    except tcf.FontInitFailure:
         # No need to indicate an error here, since typecaster_core will be erroring in the case at the same time
         variation_axes = None
     vexremap  = ''
@@ -279,7 +279,7 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None, newnumber:int=-
         try:
             targetfont = tcf.Font.Cacheable(fontparminfo.path, number=fontparminfo.number if newnumber == -1 else newnumber)
             validfont = True
-        except tcf.FontNotFoundException:
+        except tcf.FontInitFailure:
             # No need to indicate an error here, since typecaster_core will be erroring in the case at the same time
             pass
 
