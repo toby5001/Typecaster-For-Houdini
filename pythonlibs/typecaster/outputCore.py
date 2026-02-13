@@ -118,7 +118,9 @@ def reflow_helpers() -> dict[str, list[int]]:
         # chr(0xFEFF), # Zero width non-breaking space (NOBREAK)
     ),
     # These are common characters which are often safe spaces in a piece of text to insert a line break
-    '__splitafter_ids': ('-','=',':',';',',')
+    # This isn't based off of a standard or anything so it's fairly subjective, 
+    # but breaking after these characters is fairly common
+    '__splitafter_ids': ('-','=',':',';',',','/','\\')
     }
     for name in reflowhelpers_src:
         currentids = {}
