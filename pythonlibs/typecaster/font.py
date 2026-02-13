@@ -296,7 +296,7 @@ def convert_t1_to_otf(input_path: Path):
     import uuid
 
     try:
-        t1 = T1Font(input_path)
+        t1 = T1Font(input_path, kind='PFB' if input_path.suffix.lower() == '.pfb' else None)
         t1.parse()
 
         # Collect 'name' table strings
