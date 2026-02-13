@@ -906,6 +906,7 @@ class FontSelector(QtWidgets.QDialog):
         # Font search with completer
         font_search_label = QtWidgets.QLabel('Font Wildcard Search: ')
         self.font_search = QtWidgets.QLineEdit()
+        self.font_search.setClearButtonEnabled(1)
         filtergrid.addWidget(font_search_label, 0, 0)
         filtergrid.addWidget(self.font_search, 0, 1)
         completer = QtWidgets.QCompleter(self.families.keys())
@@ -1038,6 +1039,9 @@ class FontSelector(QtWidgets.QDialog):
     def apply_filters(self):
         """Triggered when a filter is modified and causes an update of the items in the font tree."""
         searchterm = self.font_search.text()
+        if '*' not in searchterm:
+            # If a wildcard isn't specified, wrap the entire search in a wildcard
+            searchterm = f'*{searchterm}*'
         sourcefilter = None if self.filter_source.currentIndex() == 0 else self.filter_source.currentText()
         varfilter = self.filter_variable.currentIndex()
         self.update_font_tree(searchterm, sourcefilter, varfilter)
