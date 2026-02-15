@@ -542,7 +542,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         if reshape_entire_run_for_varying:
                             reglyph = fontgoggle.shaper.shape( run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
                         else:
-                            minimal_text_approx = run_text[glyph_cluster:glyph_cluster+clustersize+1]
+                            minimal_text_approx = src_text_stripped[source_idx:source_idx+clustersize+1]
                             reglyph = fontgoggle.shaper.shape( minimal_text_approx, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[0]
 
                         # Check if the glyph created from the subset of the current line actually is the same as what harfbuzz did for the full line. This should avoid incorrect glyphs being used for complex clusters.
