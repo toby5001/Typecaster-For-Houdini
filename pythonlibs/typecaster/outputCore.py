@@ -261,6 +261,9 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     has_glyphextension = False
     attrib_has_glyphextension = geo.addAttrib(hou.attribType.Global, "__has_glyphextension", 0, create_local_variable=False)
 
+    # Maximum value for stable_idx, accounting for cluster size
+    attrib_stable_idx_max = geo.addAttrib(hou.attribType.Global, "stable_idx_max", 0, create_local_variable=False)
+
     # Find all the feature folders and get the value of the parameters within
     ptg = interfacenode.parmTemplateGroup()
     featfolder_name = "general_features"
@@ -733,6 +736,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
         # For each new line, increment stable_idx by 1
         stable_idx += 1
     
+    geo.setGlobalAttribValue(attrib_stable_idx_max, stable_idx-2)
     geo.setGlobalAttribValue(attrib_has_glyphextension, has_glyphextension)
     # profiler.disable()
     # import pstats
