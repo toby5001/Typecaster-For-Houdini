@@ -748,3 +748,165 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     # profiler.disable()
     # import pstats
     # pstats.Stats(profiler).sort_stats('ncalls').print_stats()
+
+
+def get_glyph_points( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry, core_node:hou.OpNode):
+    """Minimized function to run through the input text to get the appropriate per-glyph ids for initial operations before the main process.
+
+    Args:
+        interfacenode (hou.Node): The node which has all of the standard parameters to drive typecaster.
+        node (hou.OpNode): The current node the code is being executed from.
+        geo (hou.Geometry): Geostream to write to.
+        core_node (hou.OpNode): The actual python node which Typecaster core is run from.
+    """    
+    textparm = interfacenode.parm('text')
+    src_text = textparm.eval() if textparm else ''
+    src_text_stripped = ''.join(c for c in src_text if c not in CHARS_WHITESPACE_NO)
+    typecasterfont = get_tcf_from_fontinfo(core_node)
+
+    fontgoggle = typecasterfont.font
+
+    # HOUDINI ATTRIBUTE SETUP
+    attrib_ids = geo.addArrayAttrib(hou.attribType.Point, "ids", hou.attribData.Int)
+
+    # Maximum value for stable_idx, accounting for cluster size
+    attrib_stable_idx_max = geo.addAttrib(hou.attribType.Global, "stable_idx_max", 0, create_local_variable=False)
+
+    # Find all the feature folders and get the value of the parameters within
+    ptg = interfacenode.parmTemplateGroup()
+    featfolder_name = "general_features"
+    ssfolder_name = "stylistic_sets"
+    cvfolder_name = "character_variants"
+
+    targetfolder = ptg.find(featfolder_name)
+    if not targetfolder:
+        targetfolder = ptg.find(featfolder_name+'2')
+    features = { parm.name() : interfacenode.parm(parm.name()).evalAsInt() for parm in targetfolder.parmTemplates() }
+
+    targetfolder = ptg.find(ssfolder_name)
+    if not targetfolder:
+        targetfolder = ptg.find(ssfolder_name+'2')
+    features.update({ parm.name() : interfacenode.parm(parm.name()).evalAsInt() for parm in targetfolder.parmTemplates() })
+
+    targetfolder = ptg.find(cvfolder_name)
+    if not targetfolder:
+        targetfolder = ptg.find(cvfolder_name+'2')
+    features.update({ parm.name() : interfacenode.parm(parm.name()).evalAsInt() for parm in targetfolder.parmTemplates() })
+
+
+    # If the necessary inputs are used, configure for per-glyph variation
+    variations = {}
+    font_is_varying= fontgoggle.shaper.face.has_var_data
+    if font_is_varying:
+        variation_axes = fontgoggle.axes
+        nodeinputs = node.inputs()
+
+        geoin2:hou.Geometry = nodeinputs[2].geometry()
+        for var in variation_axes:
+            try:
+                variations[var] = geoin2.attribValue(ensure_compatible_name(var))
+            except hou.OperationFailed:
+                pass
+
+    stable_idx = 0
+    true_idx = 0
+    linestart = 0
+    run_id_current = 0
+
+    bidiparm:hou.Parm = interfacenode.parm('use_bidi_segmentation')
+    use_bidi_segmentation = bidiparm.eval() if bidiparm else False
+    del bidiparm
+
+    # Iterate through each line in the input string independently, to avoid any issues passing newlines to harfbuzz
+    for line_id, line_text in enumerate(src_text.split("\n")):
+        glyph_runs = []
+        if use_bidi_segmentation:
+            run_info = []
+            reordered_segments, run_id_current, run_info = line_to_run_segments(line_text, run_id_current, run_info)
+            for segment in reordered_segments:
+                glyph_runs.append( (fontgoggle.shaper.shape( segment[0], features=features, varLocation=variations, direction=segment[1]), segment[0], segment[3]) )
+        else:
+            if line_text != "":
+                glyph_runs.append( (fontgoggle.shaper.shape( line_text, features=features, varLocation=variations), line_text, 0) )
+
+        for current_runidx, (glyph_run, run_text, run_start) in enumerate(glyph_runs):
+            # Detect if the current chunk is reversed
+            # This seems like a pretty quick-and-dirty way to do it, but it works so far (famous last words)
+            is_reversed  = False
+            if glyph_run[-1].cluster < glyph_run[0].cluster:
+                is_reversed = True
+
+            # The is the start index of the current text run, accounting for previous line's runs
+            run_start_full = linestart+run_start
+
+            line_idx = 0
+            for glyph_idx, glyph in enumerate(glyph_run):
+                glyph_cluster_next = -1
+                glyph_cluster = glyph.cluster
+                if is_reversed:
+                    if glyph_idx > 0:
+                        try:
+                            glyph_cluster_next = glyph_run[ glyph_idx+1 ].cluster
+                        except IndexError:
+                            pass
+                        # glyph_cluster_prev = glyph_run[ glyph_idx-1 ].cluster
+                        # clustersize = glyph_cluster_prev - glyph_cluster
+                        clustersize = glyph_cluster - glyph_cluster_next
+                    else:
+                        glyph_cluster_next = glyph_run[ glyph_idx+1 ].cluster
+                        clustersize = len(run_text) - glyph_cluster
+                else:
+                    try:
+                        glyph_cluster_next = glyph_run[ glyph_idx+1 ].cluster
+                        clustersize = glyph_cluster_next-glyph_cluster
+                    except IndexError:
+                        clustersize = len(run_text) - glyph_cluster
+
+                # Set all of the different ids for each glyph.
+                # This is essentially every possible identifier that might be used to segment or identify a given input string.
+                """
+                Glossary of provided IDs:
+                
+                stable_idx
+                    This is a left-to-right index of the current text block, with it's number incremented for each shaped glyph
+                    output left to right. This numbering stays consistent irrespective of RTL or LTR type, which can be helpful
+                    for Houdini-centric modifications or things like sin functions.
+                source_idx
+                    This is intended to map to the source character in the input string used in the creation of a given glyph.
+                    This should most often end up being the "reading order" for the output type.
+                line_id
+                    The number of the current line in the source text
+                line_idx
+                    The index of the glyph within the current line. This is essentially stable_idx, but resetting for each line
+                run_id
+                    The ID for the current text run. In a standard LTR multiline string, this will be the same as line_id, but in the case of
+                    bidirectional text, it will be based off of individual runs, taking into account line directions
+                """
+                source_idx = run_start_full+glyph_cluster
+                run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
+                
+                # src_chars = src_text_stripped[source_idx:source_idx+clustersize]
+                ids = [
+                    stable_idx,
+                    source_idx,
+                    line_idx,
+                    line_id,
+                    run_id,
+                ]
+                
+                pt = geo.createPoint()
+                pt.setAttribValue( attrib_ids, ids )
+
+                # Increment stable_idx by the size of the current_glyph's cluster, in addition to the line index, which resets for each line
+                stable_idx += clustersize
+                line_idx += clustersize
+                # Increment true_idx by 1 nomatter what
+                true_idx += 1
+
+        # Add the current line length
+        linestart += len(line_text)+1
+
+        # For each new line, increment stable_idx by 1
+        stable_idx += 1
+    
+    geo.setGlobalAttribValue(attrib_stable_idx_max, stable_idx-2)
