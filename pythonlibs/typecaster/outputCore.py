@@ -506,6 +506,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 ax_nokern = None
                 glyph_variations = variations
                 unsafe_to_break = int(glyph.flags & GFLAG_UNSAFE_TO_BREAK == 1)
+                source_idx = run_start_full+glyph_cluster
                 if varying_per_glyph:
                     # Set the per-glyph variations
                     glyph_variations = variations.copy()
@@ -599,7 +600,6 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                     The result of the bitmask for the harfbuzz glyph info flag UNSAFE_TO_BREAK
                 """
                 codepoint_lazy = ord(run_text[glyph_cluster])
-                source_idx = run_start_full+glyph_cluster
                 dictstring = f"glyph{glyph.gid}"+str(sorted(glyph_variations.items()))
                 glyph_hash = hash(dictstring)
                 run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
