@@ -507,7 +507,14 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                 glyph_variations = variations
                 unsafe_to_break = int(glyph.flags & GFLAG_UNSAFE_TO_BREAK == 1)
                 source_idx = run_start_full+glyph_cluster
+                glyph_class = typecasterfont.glyphClassDef.get(glyph_name,1)
                 if varying_per_glyph:
+
+                    # If the current glyph's class is listed as being a mark,
+                    # and it's position isn't at zero, it will almost certainly
+                    # need to be reshaped to get accurate positional information.
+                    redo_for_mark_positioning = glyph_class == 3 and (glyph.dx != 0 or glyph.dy != 0)
+                    
                     # Set the per-glyph variations
                     glyph_variations = variations.copy()
                     try:
@@ -528,7 +535,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         except IndexError:
                             pass
                     
-                    if font_using_kern and needs_run:
+                    if (font_using_kern or redo_for_mark_positioning) and needs_run:
                         """
                         Processing each glyph independently inherentently removes any kerning pair positioning.
                         To recover this information, a minimally-sized string is passed to the shaper. The performance hit of running the entire string
@@ -540,7 +547,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                         name and the next glyph's name.
                         Additionally, if it were possible to obtain a list of existing kern pairs in the font this could also be used to accelerate everything.
                         """
-                        if reshape_entire_run_for_varying:
+                        if reshape_entire_run_for_varying or redo_for_mark_positioning:
                             reglyph = fontgoggle.shaper.shape( run_text, features=features, varLocation=glyph_variations, direction=None, language=None, script=None)[glyph_idx]
                         else:
                             minimal_text_approx = src_text_stripped[source_idx:source_idx+clustersize+1]

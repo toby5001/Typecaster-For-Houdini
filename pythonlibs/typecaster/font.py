@@ -176,6 +176,21 @@ class Font:
             ascender = 750
         return ascender
 
+    @cached_property
+    def glyphClassDef(self):
+        """Gets a glyph class definition table for the current font (if it exists).
+        For more information check out https://learn.microsoft.com/en-us/typography/opentype/spec/gdef#glyph-class-definition-table
+
+        Returns:
+            dict: Dictionary with keys-value pairs of glyph names and glyph classes.
+        """
+        gdef = self.font.ttFont.get('GDEF')
+        classdefs = {}
+        if gdef:
+            if gclass := gdef.table.GlyphClassDef:
+                classdefs = gclass.classDefs
+        return classdefs
+
     def get_bezier_order(self):
         # Set bezier order either from the sfntVersion or more often the font file's suffix
         # this will likely fail on a good amount of cases, but in 99% of the fonts I've tested, going by suffix works.
