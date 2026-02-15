@@ -374,6 +374,14 @@ def __iterate_over_fontfiles__(found_fonts:list[str], search_op=None, source_tag
                     collection = ttLib.TTCollection(p)
                     for number, ttfont in enumerate(collection.fonts):
                         __cache_individual_font__( ttfont, p, tags=tags, number=number)
+                elif p.suffix.lower() in T1FONTFILES:
+                    try:
+                        font = t1Lib.T1Font(p, kind='PFB' if p.suffix.lower() == '.pfb' else None)
+                        __cache_individual_font__( font, p, tags=tags)
+                    except Exception:
+                        # Due to how much more error-prone T1 font parsing is,
+                        # catch all errors instead of just t1Lib.T1Error
+                        pass
                 else:
                     ttfont = ttLib.TTFont(p, fontNumber=0)
                     __cache_individual_font__( ttfont, p, tags=tags, number=0)
@@ -452,7 +460,7 @@ def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
             # Handle T1 font files.
             elif searchinfo.process_type1_fonts and suffix in T1FONTFILES:
                 try:
-                    font = t1Lib.T1Font(p)
+                    font = t1Lib.T1Font(p, kind='PFB' if p.suffix.lower() == '.pfb' else None)
                     __cache_individual_font__(font, path=p, tags=tags, relative_path=relpath)
                 except Exception:
                     # Due to how much more error-prone T1 font parsing is,
