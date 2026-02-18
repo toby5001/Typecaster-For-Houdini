@@ -90,7 +90,7 @@ def line_to_run_segments(line_text, run_id_current=0, run_info=[]):
         segmentation.reverse()
 
     for value, sub in segmentation:
-        run_info.append( (run_id_current, value%2, isRTL) )
+        run_info.append( (run_id_current, value%2) )
         run_id_current += 1
         # This method is not the same as what fontgoggles does, but I've diverged pretty significantly at this point so maybe that's alright
         if value%2:
@@ -116,4 +116,4 @@ def line_to_run_segments(line_text, run_id_current=0, run_info=[]):
         reordered_segments.reverse()
         run_info.reverse()
     
-    return reordered_segments, run_id_current, run_info
+    return reordered_segments, run_id_current, run_info, isRTL

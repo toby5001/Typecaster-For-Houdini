@@ -143,6 +143,22 @@ def output_reflow_helpers(geo:hou.Geometry):
         geo.setGlobalAttribValue(attrib_current, rfh[name])
 
 
+def __make_dir( run_dir:int, line_dir:int):
+    """Get the directional information for the current run/line encoded into a single integer.
+
+    Possible values:
+    - 2 : Run Left, Line Left
+    - 4 : Run Left, Line Right
+    - 3 : Run Right, Line left
+    - 5 : Run Right, Line Right
+
+    Extracting values:
+    - Get line dir: direction >= 4
+    - Get run dir:  direction % 2
+    """
+    return run_dir + (2+(2*(line_dir if line_dir != -1 else run_dir)))
+
+
 def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry):
     """Main operation for taking a Typecaster font interface and outputting 
     both a series of glyph control points and a skeleton for layout and positioning.
@@ -443,8 +459,10 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     # Iterate through each line in the input string independently, to avoid any issues passing newlines to harfbuzz
     for line_id, line_text in enumerate(src_text.split("\n")):
 
-        # Create the poly for the line about to be operated on
-        linepoly = newline(line_id, stable_idx-1)
+        # # Create the poly for the line about to be operated on
+        # linepoly = newline(line_id, stable_idx-1)
+
+        line_created = 0
 
         # Process the input string
         """
@@ -456,9 +474,10 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
         in other cases, handling an Arabic line with a number in it was the motivation for this functionality.
         """
         glyph_runs = []
+        line_dir = -1
         if use_bidi_segmentation:
             run_info = []
-            reordered_segments, run_id_current, run_info = line_to_run_segments(line_text, run_id_current, run_info)
+            reordered_segments, run_id_current, run_info, line_dir = line_to_run_segments(line_text, run_id_current, run_info)
             for segment in reordered_segments:
                 glyph_runs.append( (fontgoggle.shaper.shape( segment[0], features=features, varLocation=variations, direction=segment[1]), segment[0], segment[3]) )
         else:
@@ -472,6 +491,12 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
             is_reversed  = False
             if glyph_run[-1].cluster < glyph_run[0].cluster:
                 is_reversed = True
+
+            direction = __make_dir(is_reversed, line_dir)
+            if current_runidx == 0:
+                # Create the poly for the line about to be operated on
+                line_created = 1
+                linepoly = newline(line_id, stable_idx-1, direction)
 
             # The is the start index of the current text run, accounting for previous line's runs
             run_start_full = linestart+run_start
@@ -605,6 +630,9 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                     bidirectional text, it will be based off of individual runs, taking into account line directions
                 unsafe_to_break
                     The result of the bitmask for the harfbuzz glyph info flag UNSAFE_TO_BREAK
+                direction
+                    Directional information for the current line and run, combined into a single integer
+                    consult __make_dir for an explanation of possible values
                 """
                 codepoint_lazy = ord(run_text[glyph_cluster])
                 dictstring = f"glyph{glyph.gid}"+str(sorted(glyph_variations.items()))
@@ -621,6 +649,7 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
                     glyph_hash,
                     run_id,
                     unsafe_to_break,
+                    direction,
                 ]
 
                 # Check if the glyph has already been created, and mark it as existing if so.
@@ -737,6 +766,9 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
 
                 glyph_cluster_last = glyph_cluster
 
+        if not line_created:
+            linepoly = newline(line_id, stable_idx-1, __make_dir(0,-1))
+
         # Add the current line length
         linestart += len(line_text)+1
 
@@ -820,9 +852,10 @@ def get_glyph_points( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometr
     # Iterate through each line in the input string independently, to avoid any issues passing newlines to harfbuzz
     for line_id, line_text in enumerate(src_text.split("\n")):
         glyph_runs = []
+        line_dir = -1
         if use_bidi_segmentation:
             run_info = []
-            reordered_segments, run_id_current, run_info = line_to_run_segments(line_text, run_id_current, run_info)
+            reordered_segments, run_id_current, run_info, line_dir = line_to_run_segments(line_text, run_id_current, run_info)
             for segment in reordered_segments:
                 glyph_runs.append( (fontgoggle.shaper.shape( segment[0], features=features, varLocation=variations, direction=segment[1]), segment[0], segment[3]) )
         else:
