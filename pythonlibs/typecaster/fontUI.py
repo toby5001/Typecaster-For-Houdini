@@ -406,7 +406,7 @@ def update_font_parms(node:hou.OpNode=None, triggersrc:str=None, newnumber:int=-
 
                 # Create the pair of parm templates for the current axes and append it to the ptg
                 template_norm = hou.FloatParmTemplate(parmname, parmname, 1, min=0, max=1, join_with_next=True, default_value=(default,))
-                template_real = hou.FloatParmTemplate(parmname_real, parmname, 1, is_label_hidden=True, min=0, max=1, 
+                template_real = hou.FloatParmTemplate(parmname_real, " ", 1, is_label_hidden=False, min=0, max=1, 
                                             default_expression=(f"""fit01(ch("{parmname}"), {minval}, {maxval})""",),
                                             tags = {'sidefx::slider':'none'}  
                                             )
