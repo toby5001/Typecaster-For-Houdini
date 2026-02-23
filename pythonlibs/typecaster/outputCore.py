@@ -398,11 +398,11 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
 
     # HoudiniPen.closefunc = increment_point_attribs
 
-    def newline(line_idx, stable_idx):
+    def newline(line_idx, stable_idx, direction):
         """Create a point and polygon for the next line with the relevant attributes"""
         linept = geo.createPoint()
         linept.setAttribValue( attrib_skeltype, "line" )
-        linept.setAttribValue( attrib_ids, [ line_idx, stable_idx] )
+        linept.setAttribValue( attrib_ids, [ line_idx, stable_idx, direction] )
         # linept = createPoint_delayedAttribs(skeltype='line', ids=[ line_idx, ])
         grp_skel.add(linept)
         blockpoly.addVertex(linept)
