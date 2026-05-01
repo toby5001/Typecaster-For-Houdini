@@ -1,0 +1,24 @@
+// Sets the weight of a variable font using a simple sin function, and quantizes the output values to reduce the number of unique glyphs.
+// sinWghtAndQuantize.vfl, by Andrew Louda
+// Modified: 2025-11-25 - Initial version
+// Copyright 2025 Andrew Louda. This file is licensed under the Apache 2.0 license.
+// SPDX-License-Identifier: Apache-2.0
+// meta[[author=Typecaster, title='Sin and Quantize', snippetname=typecaster_font/axesexpression]]
+
+// Parameters to set:
+//     Any of the above variation axes
+// Incoming parameters:
+//     stable_idx - Index of the incoming string which should remain stable even if glyphs are combined or have different directions.
+//     progress - 0-1 float which is the current amount through the source string
+//     To read any the above variation axis parameter values simply use chf(<AXIS NAME>)
+
+if(chi('use_sin')){ // [[is_toggle, default=1]]
+    f@wght = (sin((stable_idx*chf('sin_scale')+chf('sin_phase'))*M_PI)+1.)/2.;
+    // [[parm=sin_scale,preset=zeroCentered,default=0.05,max=0.1,folder=sin_parms]]
+    // [[parm=sin_phase,default_expression="$T",folder=sin_parms]]
+    // folder[[name=sin_parms,disable_when="{ use_sin != 1 }",folder_type=Borderless]]
+}
+
+if(chi('quantize_axes')){ // [[is_toggle]]
+    f@wght = floor(f@wght*float(chi('quantize_steps')))/float(chi('quantize_steps')); // [[default=12,min=2,max=32,disable_when="{ quantize_axes != 1 }"]]
+}

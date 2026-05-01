@@ -1,0 +1,11 @@
+// Quantize values using a simple macro
+// quantizeValues.vfl, by Andrew Louda
+// Modified: 2026-02-23
+// Copyright 2026 Andrew Louda. This file is licensed under the Apache 2.0 license.
+// SPDX-License-Identifier: Apache-2.0
+// meta[[author=Typecaster, title='Quantize Values', snippetname=typecaster_font/axesexpression]]
+
+#define QUANTIZE_VALUE(val) val = floor(val*float(chi('quantize_steps')))/float(chi('quantize_steps'))
+// [[default=12,min=2,max=32]]
+
+QUANTIZE_VALUE(f@wght);
