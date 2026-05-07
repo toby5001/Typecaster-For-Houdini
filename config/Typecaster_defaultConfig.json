@@ -64,5 +64,6 @@
     "fontFinder_jsoncache": {
         "enabled": 0,
         "path": "$TYPECASTER/.temp/typecaster_fontFinderCache.json"
-    }
+    },
+    "tcinternal_config_version": 1
 }
