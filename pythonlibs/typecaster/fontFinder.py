@@ -17,6 +17,7 @@ try:
     from find_system_fonts_filename import get_system_fonts_filename
 except ImportError:
     get_system_fonts_filename = None
+import os
 
 # Suppress name table errors by disabling logging.
 import logging
@@ -278,6 +279,7 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
     if isinstance(font, ttLib.TTFont):
         if LIVETYPE_LOCATION and tags.get('source',None) != 'Adobe' and path.is_relative_to(LIVETYPE_LOCATION):
             tags['source'] = 'Adobe'
+            tags['protection_mode'] = 1
 
         fvar = font.get("fvar")
         if 'variable' not in tags and fvar:
@@ -427,7 +429,7 @@ def __add_adobe_fonts__(search_op=None):
         if p.is_file() and p.suffix == '':
             try:
                 font = ttLib.TTFont(p)
-                __cache_individual_font__(font, p, tags={'source':'Adobe','search_op':search_op})
+                __cache_individual_font__(font, p, tags={'source':'Adobe','protection_mode':1,'search_op':search_op})
             except ttLib.TTLibError:
                 pass
 
@@ -435,7 +437,7 @@ def __add_adobe_fonts__(search_op=None):
         _IterDir( LIVETYPE_LOCATION, function=iterFunc, max_depth=1, run_only_on_fontfile=False)
 
 
-def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
+def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo):
     """Run over a given search path and locate fonts to add. Supports relative paths."""
     if not searchinfo.real_path:
         searchinfo.real_path = to_real_path(searchinfo.relative_path)
@@ -453,7 +455,7 @@ def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
                 try:
                     collection = ttLib.TTCollection(p)
                     for number, font in enumerate(collection.fonts):
-                        __cache_individual_font__(font, path=p, tags=tags, number=number, relative_path=relpath)
+                        __cache_individual_font__(font, path=p, tags=searchinfo.tags, number=number, relative_path=relpath)
                 except ttLib.TTLibError:
                     pass
             
@@ -461,7 +463,7 @@ def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
             elif searchinfo.process_type1_fonts and suffix in T1FONTFILES:
                 try:
                     font = t1Lib.T1Font(p, kind='PFB' if p.suffix.lower() == '.pfb' else None)
-                    __cache_individual_font__(font, path=p, tags=tags, relative_path=relpath)
+                    __cache_individual_font__(font, path=p, tags=searchinfo.tags, relative_path=relpath)
                 except Exception:
                     # Due to how much more error-prone T1 font parsing is,
                     # catch all errors instead of just t1Lib.T1Error
@@ -471,7 +473,7 @@ def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
             else:
                 try:
                     font = ttLib.TTFont(p)
-                    __cache_individual_font__(font, path=p, tags=tags, relative_path=relpath)
+                    __cache_individual_font__(font, path=p, tags=searchinfo.tags, relative_path=relpath)
                 except ttLib.TTLibError:
                     pass
 
@@ -481,15 +483,14 @@ def __add_fonts_in_relative_path__(searchinfo:SearchPathInfo, tags={}):
 def __add_fonts_in_relative_paths__( pathset:list[SearchPathInfo], search_op=None ):
     """Iterate over a list of paths created by __get_searchpaths__ with __add_fonts_in_relative_path__."""
     for sub_id, searchinfo in enumerate(pathset):
-        tags = {'source':searchinfo.source_tag}
-        tags.update( {'search_op':search_op+sub_id if search_op else None} )
-        __add_fonts_in_relative_path__( searchinfo=searchinfo, tags=tags)
+        searchinfo.tags.update( {'search_op':search_op+sub_id if search_op else None} )
+        __add_fonts_in_relative_path__( searchinfo=searchinfo)
 
 
 class SearchPathInfo(NamedTuple):
     real_path:Path
     relative_path:str
-    source_tag:str = None
+    tags:str = None
     max_depth:int = min(FONT_FIND_MAX_DEPTH, 2)
     priority:int = 0
     process_type1_fonts:bool = False
@@ -517,7 +518,7 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
                 if platform.upper() in ('ALL', PLATFORM):
                     for searchinfo in searchpaths[platform]:
                         path = None
-                        sourcetag = None
+                        tags = {}
                         max_depth_override = min(FONT_FIND_MAX_DEPTH, 2)
                         priority = 0
                         if isinstance( searchinfo, str):
@@ -525,10 +526,12 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
 
                         elif isinstance( searchinfo, dict):
                             path = searchinfo.get('path',None)
-                            sourcetag = searchinfo.get('source_tag', None)
+                            tags['source'] = searchinfo.get('source_tag', None)
                             max_depth_override = searchinfo.get('max_depth_override', max_depth_override)
                             priority = searchinfo.get('priority',priority)
                             process_type1_fonts:bool = searchinfo.get('process_type1_fonts',0) == 1
+                            if protection_mode := searchinfo.get('protection_mode'):
+                                tags['protection_mode'] = protection_mode
 
                         if path:
                             relpath = path
@@ -536,7 +539,7 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
                             if path.exists():
                                 relpath = Path(relpath).as_posix()
 
-                                data = SearchPathInfo(path, relpath, sourcetag, max_depth_override, priority, process_type1_fonts)
+                                data = SearchPathInfo(path, relpath, tags, max_depth_override, priority, process_type1_fonts)
                                 if priority == 0:
                                     prior_standard.append( data)
                                 elif priority > 0:
@@ -548,6 +551,20 @@ def __get_searchpaths__( config:dict=None)-> tuple[list[SearchPathInfo],list[Sea
     if prior_last:
         prior_last.sort( key= lambda k: k[4], reversed=True )
     return prior_first, prior_standard, prior_last
+
+
+def _search_dirs_in_env_(search_op):
+    """
+    Read a persistent environment variable with a list of paths to search saved with the current HIP.
+    """
+    if envval := os.getenv('TYPECASTER_SEARCHPATHS'):
+        searchpaths = envval.split(";")
+        for searchpath in searchpaths:
+            relpath = Path(searchpath).as_posix()
+            path = to_real_path(relpath)
+            if path.exists():
+                relpath = Path(relpath).as_posix()
+                __add_fonts_in_relative_path__( searchinfo=SearchPathInfo(path, relpath, tags={'source':'ENV','search_op':search_op}))
 
 
 def update_font_info(force_real_update=False):

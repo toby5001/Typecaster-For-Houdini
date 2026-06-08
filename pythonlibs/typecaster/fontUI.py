@@ -549,20 +549,22 @@ def swap_font_parms(node:hou.OpNode=None, swap_mode=0, parm_naming_version="1.0"
     fontparmval = None
     fontnumber = None
     if fontinfo.is_filepath and (swap_mode==0 or swap_mode==1):
-        if fontinfo.name:
-            # If currently a path with a corresponding name...
-            fontparmval = fontinfo.name
-            fontnumber = fontinfo.number
+        if fontinfo.info and fontinfo.info.tags.get('protection_mode',0) == 2:
+            _show_warning_(f'Unable to swap from path to name! Font at {fontinfo.info.path} is protected.')
         else:
-            msg = 'Unable to swap from path to name! This path might not be searched by Typecaster.'
-            if hou.isUIAvailable():
-                hou.ui.displayMessage(msg, severity=hou.severityType.Warning, title='Typecaster')
+            if fontinfo.name:
+                # If currently a path with a corresponding name...
+                fontparmval = fontinfo.name
+                fontnumber = fontinfo.number
             else:
-                print(f"<TYPECASTER WARNING> {msg}")
+                _show_warning_('Unable to swap from path to name! This path might not be searched by Typecaster.')
     elif (swap_mode==0 or swap_mode==2):
         # If currently a name...
-        fontparmval = fontinfo.info.interface_path
-        fontnumber = fontinfo.number
+        if fontinfo.info and fontinfo.info.tags.get('protection_mode',0) == 1:
+            _show_warning_(f'Unable to swap from name to path! Font {fontinfo.name} is protected. This is likely an Adobe font or similar.')
+        else:
+            fontparmval = fontinfo.info.interface_path
+            fontnumber = fontinfo.number
     if fontparmval:
         fontparm = node.parm(parmnames['font'])
         # Contain all operations within the same undos group
@@ -713,6 +715,19 @@ Semi-internal functions for building specific subcomponents of the interface.
 These are not expected to be called directly in the interface or by the end user
 
 """
+
+
+def _show_warning_(msg:str):
+    """General-purpose function to display a warning when run inside a graphical session,
+    and otherwise printing the message.
+
+    Args:
+        msg (str): Warning message to display.
+    """
+    if hou.isUIAvailable():
+        hou.ui.displayMessage(msg, severity=hou.severityType.Warning, title='Typecaster Warning')
+    else:
+        print(f"<TYPECASTER WARNING> {msg}")
 
 
 def _get_collection_menu_(fontpath:Path) -> tuple[list[str],list[str]]:
@@ -1008,9 +1023,10 @@ class FontSelector(QtWidgets.QDialog):
             # Only enable font application if the item has a parent,
             # ensuring that it is an actual font and not a family name
             self.enableApply()
+            info = self.name_info[items[0].text(0)]
+            self.set_as_path_widget.setDisabled(info.tags.get('protection_mode',0) != 0)
             if self.font_preview_standalone:
                 # Set the widget's font
-                info = self.name_info[items[0].text(0)]
                 qfnt = self.font_preview_text.font()
                 if info.path not in self.added_fonts:
                     font_id = QtGui.QFontDatabase.addApplicationFont(str(info.path))
@@ -1134,7 +1150,7 @@ class FontSelector(QtWidgets.QDialog):
                 info = self.name_info.get(fontname,None)
                 if info:
                     as_path = self.set_as_path_widget.isChecked()
-                    if as_path:
+                    if (as_path and info.tags.get('protection_mode',0) == 0) or info.tags.get('protection_mode',0) == 2:
                         fontname = info.interface_path
 
                     if native_font:
