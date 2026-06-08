@@ -39,6 +39,10 @@ def getOpener(fontPath: Path, openerKey=None):
         if openerKey is None:
             if path_to_name_mappings(fontPath):
                 openerKey = "otf"
+            elif not fontPath.suffix.lower():
+                # Generic catch-all for files without an extension. Since we don't know
+                # for sure what it is, we might as well try it as an OTF.
+                openerKey = "otf"
         if openerKey is None:
             raise FontInitFailure("Unexpected file type!")
     elif openerKey not in fgfont.fontOpeners:
