@@ -1136,6 +1136,7 @@ class FontSelector(QtWidgets.QDialog):
             self.added_fonts[info.path] = font_id
         qfnt.setFamily(info.family)
         qfnt.setStyleName(info.subfamily)
+        qfnt.setItalic(info.italic)
         qfnt.setStyleStrategy(QtGui.QFont.NoFontMerging)
         subitem.setFont(4, qfnt)
 
