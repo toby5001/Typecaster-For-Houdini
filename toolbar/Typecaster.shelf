@@ -10,6 +10,7 @@
     <memberTool name="typecaster_convertFontNode"/>
     <memberTool name="typecaster_fontSelectionUI"/>
     <memberTool name="typecaster_localizeFontFiles"/>
+    <memberTool name="typecaster_getFontInfo"/>
   </toolshelf>
 
   <tool name="typecaster_installerGUI" label="Installer GUI" icon="PLASMA_App">
@@ -245,6 +246,28 @@ if confirmed:
         hou.ui.displayMessage(log,title='Typecaster',details_label='Show immovable font info',details=json.dumps(immovable_fonts, indent=4) if immovable_fonts else None)
     else:
         print(log)
+]]></script>
+  </tool>
+
+  <tool name="typecaster_getFontInfo" label="Get Font Info" icon="PLASMA_App">
+    <script scriptType="python"><![CDATA[from typecaster import fontUI
+import hou
+
+
+def show_font_info(node:hou.OpNode):
+    info = fontUI.interpret_font_parms(node).info
+    idct = info.__dict__.copy()
+    # print(idct)
+    del idct['__field_names__']
+    infostring = ''
+    for k, v in idct.items():
+        infostring += f'\n{k} = {str(v)}'
+    if infostring:
+        infostring = infostring[1:]
+    
+    print(infostring)
+
+show_font_info(hou.node('/obj/geo1/typecaster_Font'))
 ]]></script>
   </tool>
 </shelfDocument>
