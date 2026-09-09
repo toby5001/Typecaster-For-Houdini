@@ -211,10 +211,6 @@ def check_install(auto_install=True, force_if_not_valid=False):
         bool: Returns True if typecaster is installed, or it was installed.
     """
     validinstall = False
-    # The following is requred for compatibility with H21.0.440, which includes a broken version of fontTools.
-    if HMAJOR>=21:
-        print("<TYPECASTER> TEMPFIX: Prepending python path with Typecaster libs (included fontTools override)")
-        sys.path.insert(0, str(TYPECASTER_PYTHON_INSTALL_PATH))
     try:
         from typecaster.font import Font # noqa: F401
         del Font
@@ -237,6 +233,43 @@ def check_install(auto_install=True, force_if_not_valid=False):
             print("""Auto-install is disabled. Please either run the installer from the shelf tool, or run typecaster.installer.install_dependencies() from a python shell.""")
     elif force_if_not_valid:
         print("Typecaster already is installed!")
+
+    # The following is requred for compatibility with H21.0.440, which includes a broken version of fontTools.
+    # After additional testing, it looks like this isn't an issue on Linux (H22), so it might be an issue with the Windows Houdini distribution only
+    if HMAJOR>=21 and PLATFORM == "WINDOWS":
+        # print("<TYPECASTER> Houdini version >= 21 detected. Checking for presence of fontTools.ttlib.tables._h_e_a_d.")
+        hfsp = Path(os.getenv("HFS"))
+        try:
+            from fontTools.ttLib.tables import _h_e_a_d as head
+            # hp = head.__file__
+            del head
+        except (ImportError, ModuleNotFoundError):
+            # The below idea is a pretty cool patching method, but since it requires elevated privledges it's too unreliable across install environments, and completely incompatible with scenarios where the user doesn't have admin priveledges.
+            print("<TYPECASTER> _h_e_a_d fontTools table not found. Attempting to perform one-time patch.")
+            from fontTools.ttLib import tables
+            tablepath = Path(tables.__file__)
+            if tablepath.is_relative_to(hfsp):
+                import shutil
+                tablefolder_hfs = tablepath.parent
+                tempfolder = TYPECASTER_ROOT_PATH/f".temp/missing_fontTools_files_{PYTHON_VERSION}"
+                tempfolder.mkdir(exist_ok=True)
+                tablefolder = Path(TYPECASTER_PYTHON_INSTALL_PATH)/"fontTools/ttLib/tables"
+                for file in ('_h_e_a_d.py','_g_c_i_d.py','_o_p_b_d.py'):
+                    targettable = tablefolder/file
+                    if targettable.exists():
+                        if (tablefolder_hfs/file).exists():
+                            pass
+                            # print(f"<TYPECASTER> {file} already present at {tablefolder_hfs}. Copying anyways.")
+                        # print(f"<TYPECASTER> Copying {file} from typecaster's python libs to Houdini's site-packages.")
+                        try:
+                            shutil.copy(targettable.resolve(), tempfolder)
+                        except PermissionError:
+                            print(f"<TYPECASTER> Unable to copy {file} from typecaster's python libs to temp folder.")
+                print(f"<TYPECASTER> This version of Houdini ships with an incomplete version of fontTools. While Typecaster is often able to compensate for this, for best reliability please copy the files in {tempfolder.resolve()!s} to {tablefolder_hfs.resolve()!s}")
+
+            print("<TYPECASTER> TEMPFIX: Prepending python path with Typecaster libs (included fontTools override)")
+            sys.path.insert(0, str(TYPECASTER_PYTHON_INSTALL_PATH))
+
     return validinstall
 
 
