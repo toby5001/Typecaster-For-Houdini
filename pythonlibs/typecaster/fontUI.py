@@ -698,12 +698,10 @@ def font_selection_dropdown( node:hou.OpNode=None):
     for fam in sorted(families):
         menu.extend( ("_separator_", "_separator") )
         fam = _sort_family_(families[fam])
-        if items_are_paths:
-            for name in fam:
-                menu.extend( (name_info[name].interface_path, name) )
-        else:
-            for name in fam:
-                menu.extend( (name, name) )
+        for name in fam:
+            menuname = f"[T1] {name}" if name_info[name].tags.get('is_T1',False) else name
+            menuvalue = name_info[name].interface_path if items_are_paths else name
+            menu.extend( (menuvalue, menuname) )
     return menu
 
 

@@ -322,6 +322,7 @@ def __cache_individual_font__(font:ttLib.TTFont|t1Lib.T1Font, path:Path, tags:di
     elif isinstance(font, t1Lib.T1Font):
         from fontTools.misc import psLib
         font.font = psLib.suckfont(font.data, font.encoding)
+        tags['is_T1'] = True
         # font.parse()
         weight = -1
         width = -1
