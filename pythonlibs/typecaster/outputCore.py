@@ -793,7 +793,6 @@ def get_glyph_points( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometr
     """    
     textparm = interfacenode.parm('text')
     src_text = textparm.eval() if textparm else ''
-    src_text_stripped = ''.join(c for c in src_text if c not in CHARS_WHITESPACE_NO)
     typecasterfont = get_tcf_from_fontinfo(core_node)
 
     fontgoggle = typecasterfont.font
@@ -917,8 +916,7 @@ def get_glyph_points( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometr
                 """
                 source_idx = run_start_full+glyph_cluster
                 run_id = run_info[current_runidx][0] if use_bidi_segmentation else line_id
-                
-                # src_chars = src_text_stripped[source_idx:source_idx+clustersize]
+
                 ids = [
                     stable_idx,
                     source_idx,
