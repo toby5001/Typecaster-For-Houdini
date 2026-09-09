@@ -32,6 +32,8 @@ if not os.getenv('TYPECASTER') or not Path( os.getenv('TYPECASTER') ).exists():
 
 TYPECASTER_ROOT_PATH = Path( os.getenv('TYPECASTER') ).resolve()
 TYPECASTER_URL = 'https://api.github.com/repos/toby5001/Typecaster-For-Houdini'
+TYPECASTER_REPOSITORY_URL = 'https://github.com/toby5001/Typecaster-For-Houdini'
+GIT_BRANCHES = ('main', 'dev')
 REQUIREMENTS_PATH = ( TYPECASTER_ROOT_PATH / "requirements.txt" ).resolve()
 PYTHON_VERSION = f"{str(sys.version_info.major)}.{str(sys.version_info.minor)}"
 PYTHON_INSTALLFOLDERNAME = f"python{PYTHON_VERSION}libs"
@@ -42,6 +44,7 @@ PLATFORM = get_platform_system().upper()
 
 
 def __runcmd__(cmd, do_print=True):
+    """Run a command, using TYPECASTER_ROOT_PATH as the current directory."""
     # print(cmd)
     # return False, bytes(), bytes()
     process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=TYPECASTER_ROOT_PATH)
@@ -54,6 +57,16 @@ def __runcmd__(cmd, do_print=True):
             print(f'Running command "{cmd}" failed with the following error:')
             print(stderr.decode())
         return False, stdout, stderr
+
+
+HAS_GIT = __runcmd__("git --version", do_print=False)[0]
+IS_GIT_REPO = False
+if HAS_GIT:
+    IS_GIT_REPO = __runcmd__("git rev-parse --show-prefix",do_print=False)
+    IS_GIT_REPO = IS_GIT_REPO[0] and IS_GIT_REPO[1].decode().lstrip() == ""
+    if IS_GIT_REPO:
+        IS_GIT_REPO = __runcmd__("git remote -v",do_print=False)[1].decode() != ''
+CAN_USE_GIT_OPS = HAS_GIT and IS_GIT_REPO
 
 
 def __get_filehash__(file:Path):
@@ -131,7 +144,16 @@ def update(mode:str=None, release:str=None, discard_changes=False, branch=None, 
 
     Raises:
         Exception: Raised if no releases are able to be found.
-    """        
+    """ 
+    if not CAN_USE_GIT_OPS:
+        msg = "<TYPECASTER ERROR> "
+        if not HAS_GIT:
+            msg += "This installer currently only supports updating through git. Please install git and attempt to update again, or manually update Typecaster by installing the latest version on Github."
+        if (HAS_GIT+IS_GIT_REPO)==0:
+            msg += " Additionaly, "
+        if not IS_GIT_REPO:
+            msg += f"""Typecaster appears to not have been installed using git, which is required for the updater. Please reinstall Typecaster using "git clone {TYPECASTER_REPOSITORY_URL}". For more information please check Typecaster's install information on Github."""
+        raise(NotImplementedError(msg))
     # print("Updating Typecaster from github...")
     dependency_update = False
     discardcmd = f"git stash && {'git stash drop ; ' if discard_changes else ''}"
@@ -363,7 +385,7 @@ def get_update_cmd(mode:str=None, release:str=None, discard_changes=False, branc
             code += "%TYPECASTER%"
         else:
             code += "$TYPECASTER"
-    code += '/pythonlibs/typecaster/installer.py" cli --o update '
+    code += f'/{Path(__file__).relative_to(TYPECASTER_ROOT_PATH).as_posix()}" cli --o update '
     if mode == "latest_commit":
         code += "--r lc"
     elif mode == "latest_stable_release":
@@ -399,16 +421,21 @@ if __name__ == "__main__":
     import argparse
     
     print("\n<TYPECASTER> Running Typecaster Installer outside of a Houdini session")
-    MODEOPTIONS = (('latest_stable_release','ls'), ('latest_commit','lc'), ('latest_release','lr'), ('release_tag','release','r'))
-    MODEOPTIONS_FLAT = [item for sublist in MODEOPTIONS for item in sublist]
-        
+    MODEOPTIONS_FULL = [('latest_stable_release','ls'), ('latest_release','lr'), ('release_tag','release','r'), ('latest_commit','lc')]
+    MODEOPTIONS = MODEOPTIONS_FULL
+    if not CAN_USE_GIT_OPS:
+        del MODEOPTIONS[-1]
+    MODEOPTIONS_FLAT = [item for sublist in MODEOPTIONS for item in sublist]    
+    op_options = (('u','update'),('id','install_dependencies'))
+    op_options_flat = [item for sublist in op_options for item in sublist]
+
     parser = argparse.ArgumentParser()
     parser.add_argument("standalone_mode", help='How you would like to use the installer. Options are "gui", "cli", and "none" to run without either.')
-    parser.add_argument("-o", "--operation", help='The operation you would like to do. Options are "update" (or "u") and "install_dependencies" (or "id")')
-    parser.add_argument("-r", "--release", help='What release to use. Options are "ls" for latest stable release, "lr" for latest release, "lc" for latest commit, or a specific release (eg: "1.0.0e").')
+    parser.add_argument("-o", "--operation", choices=op_options_flat, help='The operation you would like to do. Options are "update" (or "u") and "install_dependencies" (or "id")')
+    parser.add_argument("-r", "--release", choices=MODEOPTIONS_FLAT, help='What release to use. Options are "ls" for latest stable release, "lr" for latest release, "lc" for latest commit, or a specific release (eg: "1.0.0e").')
     parser.add_argument("-c", "--clear", action='store_true', help='When enabled, clear anything in the pythonX.XXlibs folders.')
     parser.add_argument("-d", "--discard_changes", action='store_true', help='When enabled and the operation is "update", any changes made to the repo will be discarded.')
-    parser.add_argument("-b", "--branch", help='A specific branch to use when release is set to "latest commit". Defaults to "main" when not set.')
+    parser.add_argument("-b", "--branch", choices=GIT_BRANCHES, help='A specific branch to use when release is set to "latest commit". Defaults to "main" when not set.')
 
     args = parser.parse_args()
 
@@ -416,8 +443,6 @@ if __name__ == "__main__":
     if standalone_mode == 'cli':
         print("<TYPECASTER> Using Installer CLI")
         operation = args.operation.lower() if args.operation else None
-        op_options = (('u','update'),('id','install_dependencies'))
-        op_options_flat = [item for sublist in op_options for item in sublist]
         if not operation:
             print(f"What would you like to do?\nOptions are:\n    {op_options[0]}: Update Typecaster.\n    {op_options[1]}: Install Typecaster's dependencies.")
             while operation not in op_options_flat:
@@ -432,15 +457,15 @@ if __name__ == "__main__":
             if args.release:
                 branch = args.branch
                 if args.release in MODEOPTIONS_FLAT:
-                    if args.release in MODEOPTIONS[0]:
+                    if args.release in MODEOPTIONS_FULL[0]:
                         # Update using latest stable version
                         print("Updating to the latest stable release.")
                         mode = 'latest_stable_release'
-                    elif args.release in MODEOPTIONS[1]:
-                        mode = 'latest_commit'
-                    elif args.release in MODEOPTIONS[2]:
+                    elif args.release in MODEOPTIONS_FULL[1]:
                         print("Updating to the latest release.")
                         mode = 'latest_release'
+                    elif args.release in MODEOPTIONS_FULL[3]:
+                        mode = 'latest_commit'
                 else:
                     # Check if the string is an existing release and update using it if so.
                     print("Release specified. Likely a specific version.")
@@ -484,6 +509,8 @@ if __name__ == "__main__":
             parser.print_help()
 
     elif standalone_mode == 'gui':
+        import traceback
+
         print("<TYPECASTER> Using Installer GUI")
         try:
             from PySide6 import QtWidgets, QtGui # type: ignore
@@ -493,6 +520,23 @@ if __name__ == "__main__":
             from PySide2 import QtWidgets, QtGui
             from PySide2.QtCore import Qt
             PS6 = False
+
+        def exception_hook(exc_type, exc_value, exc_traceback):
+            error_msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Critical)
+            msg.setText("An unexpected error occurred!")
+            msg.setInformativeText(str(exc_value))
+            msg.setDetailedText(error_msg) # Puts the traceback in a "Show Details..." section
+            msg.setWindowTitle("Error")
+            if PS6:
+                msg.exec()
+            else:
+                msg.exec_()
+
+        # Register the hook
+        sys.excepthook = exception_hook
 
         class QuestionWindow(QtWidgets.QMessageBox):
             def __init__(self):
@@ -527,7 +571,8 @@ if __name__ == "__main__":
                 method_label = QtWidgets.QLabel('Update Method: ')
                 self.configlayout.addWidget(method_label)
                 self.update_method = QtWidgets.QComboBox()
-                for i in [item[0].replace('_', ' ').title() for item in MODEOPTIONS]:
+                self.method_map = {item[0].replace('_', ' ').title() : item[0] for item in MODEOPTIONS}
+                for i in list(self.method_map.keys()):
                     self.update_method.addItem(i)
                 self.configlayout.addWidget(self.update_method)
                 self.update_method.currentIndexChanged.connect(self.callback_update_method)
@@ -557,7 +602,7 @@ if __name__ == "__main__":
                 self.advanced_layout.addRow(self.discard_changes)
                 self.branch_label = QtWidgets.QLabel('Branch:')
                 self.branch_select = QtWidgets.QComboBox()
-                for i in ('main', 'dev'):
+                for i in GIT_BRANCHES:
                     self.branch_select.addItem(i)
                 self.advanced_layout.addRow(self.branch_label, self.branch_select)
 
@@ -591,8 +636,8 @@ if __name__ == "__main__":
                 self.logwindow.appendPlainText(s)
 
             def callback_update_method(self):
-                selection = self.update_method.currentIndex()
-                specific_release = selection == 3
+                selection = self.method_map.get(self.update_method.currentText(), None)
+                specific_release = selection in MODEOPTIONS_FULL[2]
                 if specific_release:
                     if not self._releases_:
                         self._releases_ = get_releases()['all']
@@ -601,8 +646,9 @@ if __name__ == "__main__":
                 self.release_label.setVisible(specific_release)
                 self.release_tag.setVisible(specific_release)
                 if self.advanced_group.isChecked():
-                    self.branch_label.setEnabled(selection==1)
-                    self.branch_select.setEnabled(selection==1)
+                    latest_commit = selection in MODEOPTIONS_FULL[3]
+                    self.branch_label.setEnabled(latest_commit)
+                    self.branch_select.setEnabled(latest_commit)
 
             def enable_log(self):
                 self.logcontainer.setVisible(True)
@@ -610,7 +656,7 @@ if __name__ == "__main__":
                 print = self.addlogitem
 
             def do_update(self):
-                selection = self.update_method.currentIndex()
+                selection = self.method_map.get(self.update_method.currentText(), None)
                 self.enable_log()
                 self.update_button.setDisabled(True)
                 # self.close_button.setVisible(True)
@@ -621,7 +667,7 @@ if __name__ == "__main__":
                     discard_changes = self.discard_changes.isChecked()
                     branch = self.branch_select.currentText()
                     force_clear = self.clear_dependencies.isChecked()
-                result = update(mode=MODEOPTIONS[selection][0], release=self.release_tag.currentText(), discard_changes=discard_changes, branch=branch, force_clear=force_clear)
+                result = update(mode=selection, release=self.release_tag.currentText(), discard_changes=discard_changes, branch=branch, force_clear=force_clear)
                 if result:
                     self.addlogitem("Update process completed. Window can be safely closed.")
 
