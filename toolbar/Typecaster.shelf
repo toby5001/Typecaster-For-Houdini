@@ -180,7 +180,7 @@ if confirmed:
                 h.update(chunk)
         return h.hexdigest()
 
-    stats = {'bypassed':[],'modified':[],'already_local':[],'invalid':[]}
+    stats = {'bypassed':[],'modified':[]}
 
     with hou.undos.group("Localize Typecaster Fonts to project"):
         for foundtype in foundtypes:
@@ -193,7 +193,7 @@ if confirmed:
                         sourcetag = finfo.info.tags.get('source','')
                         # Current node was found to be using an adobe font. Probably best not to automate the collection of them.
                         immovable_fonts.setdefault(sourcetag,{}).setdefault(finfo.name, []).append(node.path())
-                        stats['bypassed'].append(node.path())
+                        stats['bypassed'].append((node.path(), "Font's path is designated protected and is immovable"))
                     else:
                         if not finfo.is_filepath:
                             # If not already a filepath, swap to one
@@ -203,7 +203,7 @@ if confirmed:
                             if finfo.path.parent.resolve() == projectfontfolder:
                                 # If the font is already a filepath and is in the project font folder,
                                 # it has already been localized and doesn't need to be touched.
-                                stats['already_local'].append(node.path())
+                                stats['bypassed'].append((node.path(), "Already local"))
                                 continue
 
                         # By this point, we should only be operating on font nodes which are using distinct paths which weren't already pointed to the fonts folder
@@ -230,17 +230,37 @@ if confirmed:
 
                         stats['modified'].append(node.path())
                 else:
-                    stats['bypassed'].append(node.path())
+                    stats['bypassed'].append((node.path(), "Invalid font"))
 
     # Move the designated fonts to the local folder
     for destination in fonts_to_move:
         source = fonts_to_move[destination]
         shutil.copy(source, destination)
 
+    logfile = (projectfontfolder/"font_localization_report.txt")
+    with logfile.open("w") as f:
+        log = f"Nodes modified ({len(stats['modified'])}):"
+        for i in stats['modified']:
+            log += f"\n  {i}" 
+        log += "\n"
+        log += f"\nNodes bypassed ({len(stats['bypassed'])}):"
+        for i in stats['bypassed']:
+            log += f"\n  {i[0]}, Reason: {i[1]}"
+        log += "\n"
+        log += "\nImmovable fonts, grouped by source:"
+        for srctag, fonts in immovable_fonts.items():
+            log += f"\n  {srctag}"
+            for fontname, nodepaths in fonts.items():
+                log += f"\n    {fontname}"
+                for nodepath in nodepaths:
+                    log += f"\n      {nodepath}"
+        f.write(log)
+
     log = ("Ran Typecaster localization script with the following results:"
         f"\n    Nodes modified:      {len(stats['modified'])}"
-        f"\n    Nodes already local: {len(stats['already_local'])}"
-        f"\n    Nodes bypassed:      {len(stats['bypassed'])}")
+        f"\n    Nodes bypassed:      {len(stats['bypassed'])}"
+        f"\nPlease check {projectfontfolderstring}/{logfile.name} for detailed information on\nthe latest export, along with a list of protected fonts.\n" if immovable_fonts else None
+        )
 
     if hou.isUIAvailable():
         hou.ui.displayMessage(log,title='Typecaster',details_label='Show immovable font info',details=json.dumps(immovable_fonts, indent=4) if immovable_fonts else None)
