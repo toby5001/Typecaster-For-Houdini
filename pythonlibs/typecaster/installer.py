@@ -122,14 +122,13 @@ def clear_dependencies():
     # Typecaster don't get out of step with the versions expected in the current commit.
     print(f"Removing existing pythonX.XXlibs folders in {TYPECASTER_ROOT_PATH}.")
     for f in TYPECASTER_ROOT_PATH.iterdir():
-        if f.is_dir():
-            if re.match("python\d\.\d{1,2}libs", f.name):
-                print(f"""Removing folder "{f.name}" and it's contents...""")
-                try:
-                    shutil.rmtree(f)
-                    print(f"""Folder "{f.name}" and it's contents removed successfully!""")
-                except OSError as e:
-                    print(f"Error: {f} : {e.strerror}")
+        if f.is_dir() and re.match(r"python\d\.\d{1,2}libs", f.name):
+            print(f"""Removing folder "{f.name}" and it's contents...""")
+            try:
+                shutil.rmtree(f)
+                print(f"""Folder "{f.name}" and it's contents removed successfully!""")
+            except OSError as e:
+                print(f"Error: {f} : {e.strerror}")
 
 
 def update(mode:str=None, release:str=None, discard_changes=False, branch=None, force_clear=False):
