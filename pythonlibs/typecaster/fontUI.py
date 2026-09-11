@@ -869,6 +869,7 @@ class FontSelector(QtWidgets.QDialog):
         self.fontparm:hou.Parm = self.fontnode.parm(PARMNAMING["1.0"]["font"])
         if not self.fontparm:
             raise Exception("Is this being run in the appropriate context or node?")
+        self.is_native_font = self.fontnode.type().name() == "font"
         self.fontparminfo = interpret_font_parms(self.fontnode, read_collection_fontnumber=True)
 
         # fontfinder info
@@ -992,7 +993,9 @@ class FontSelector(QtWidgets.QDialog):
 
         # Set as path toggle
         self.set_as_path_widget = QtWidgets.QCheckBox('Set as path')
-        if self.fontparm.isAtDefault(compare_temporary_defaults=False):
+        if self.is_native_font:
+            use_path = True
+        elif self.fontparm.isAtDefault(compare_temporary_defaults=False):
             use_path = False
         else:
             use_path = bool(self.fontparminfo.is_filepath and self.fontparminfo.info)
@@ -1140,7 +1143,6 @@ class FontSelector(QtWidgets.QDialog):
 
     def apply(self):
         """Apply the currently selected font to the font node."""
-        native_font = self.fontnode.type().name() == "font"
         items = self.tree_widget.selectedItems()
         if items:
             item = items[0]
@@ -1152,8 +1154,8 @@ class FontSelector(QtWidgets.QDialog):
                     if (as_path and info.tags.get('protection_mode',0) == 0) or info.tags.get('protection_mode',0) == 2:
                         fontname = info.interface_path
 
-                    if native_font:
-                        if native_font and as_path and info.number > 0:
+                    if self.is_native_font:
+                        if self.is_native_font and as_path and info.number > 0:
                             val = QtWidgets.QMessageBox.warning(
                                 self,
                                 'Problem with applying font!', 
