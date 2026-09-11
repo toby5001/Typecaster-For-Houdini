@@ -1074,6 +1074,7 @@ class FontSelector(QtWidgets.QDialog):
         self.tree_widget.clear()
         items = []
         
+        warning_icon = self.tree_widget.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_MessageBoxWarning)
         run_filters=False
         if fontfilter or sourcefilter or varfilter != 0:
             run_filters = True
@@ -1103,6 +1104,9 @@ class FontSelector(QtWidgets.QDialog):
                 if self.font_preview_inline:
                     self._set_subitem_font_(subitem,info)
                 
+                if not self.is_native_font and info.tags.get('is_T1',False):
+                    subitem.setIcon(0, warning_icon)
+                    subitem.setToolTip(0, '<p>This is a Type 1 font, which is not fully supported by Typecaster at this time. The font may not look as expected, or not load at all. If possible, please use a more modern version of the font.</p>')
                 item.addChild(subitem)
             if add_fam:
                 items.append(item)
