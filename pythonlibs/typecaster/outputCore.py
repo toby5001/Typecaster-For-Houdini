@@ -452,9 +452,8 @@ def output_geo_fast( interfacenode:hou.OpNode, node:hou.OpNode, geo:hou.Geometry
     use_bidi_segmentation = bidiparm.eval() if bidiparm else False
     del bidiparm
     
-    # No need to output the glyphs if the output style is frame prims
-    outputstyleparm:hou.Parm = interfacenode.parm('output_style')
-    output_glyphs = outputstyleparm.eval() != 3 if outputstyleparm else True
+    disableoutputparm:hou.Parm = interfacenode.parm('disable_glyph_output')
+    output_glyphs = 1-disableoutputparm.eval() if disableoutputparm else True
 
     # Iterate through each line in the input string independently, to avoid any issues passing newlines to harfbuzz
     for line_id, line_text in enumerate(src_text.split("\n")):
